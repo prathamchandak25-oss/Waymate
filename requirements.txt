@@ -1,0 +1,3 @@
+# Python dependencies for Waymate
+# Note: server.py uses the built-in standard library http.server module (zero external dependencies required)
+gunicorn>=21.2.0

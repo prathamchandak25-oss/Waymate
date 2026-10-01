@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Support & Help Center | Waymate</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* --- CSS Variables (Matching About Page) --- */
+        :root {
+            --primary-color: #ffffff;
+            --bg-dark: #0a0a0a;
+            --text-main: #ffffff;
+            --text-muted: #a1a1a1;
+            --text-dark: #000000;
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-blur: blur(16px);
+            --accent-green: #4ade80;
+            --accent-blue: #60a5fa;
+        }
+
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+            font-family: 'Poppins', sans-serif; 
+            -webkit-tap-highlight-color: transparent; 
+        }
+
+        body {
+            background: linear-gradient(135deg, #050505 0%, #141414 100%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        body.loaded { 
+            visibility: visible; 
+            opacity: 1; 
+        }
+
+        .container { 
+            width: 100%; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 0 20px; 
+        }
+
+        .highlight { 
+            background: -webkit-linear-gradient(0deg, #ffffff, #666666); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+        }
+
+        /* --- LOADER --- */
+        #loader-overlay { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: #050505; 
+            z-index: 9999; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+        }
+
+        .spinner { 
+            width: 40px; 
+            height: 40px; 
+            border: 3px solid rgba(255,255,255,0.1); 
+            border-radius: 50%; 
+            border-top-color: #fff; 
+            animation: spin 0.8s ease-in-out infinite; 
+        }
+
+        @keyframes spin { 
+            to { transform: rotate(360deg); } 
+        }
+
+        /* --- NAV --- */
+        nav { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 90px; 
+            z-index: 1000; 
+            background: rgb(10 10 10 / 24%); 
+            backdrop-filter: blur(20px); 
+            -webkit-backdrop-filter: blur(20px); 
+            border-bottom: 1px solid var(--glass-border); 
+            display: flex; 
+            align-items: center; 
+        }
+
+        .nav-container { 
+            width: 100%; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 0 20px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+        }
+
+        .logo { 
+            font-size: 1.8rem; 
+            font-weight: 700; 
+            color: var(--text-main); 
+            display: flex; 
+            align-items: center; 
+            text-decoration: none; 
+        }
+
+        .logo-icon { 
+            margin-right: 10px; 
+            color: var(--text-main); 
+            font-size: 1.8rem; 
+        }
+
+        .logo span { 
+            color: var(--text-muted); 
+            font-weight: 300; 
+        }
+
+        .nav-links { 
+            display: flex; 
+            list-style: none; 
+            gap: 40px; 
+            margin: 0; 
+            padding: 0; 
+        }
+
+        .nav-links a { 
+            text-decoration: none; 
+            color: var(--text-muted); 
+            font-weight: 500; 
+            transition: color 0.3s; 
+            font-size: 1rem; 
+        }
+
+        .nav-links a:hover, .nav-links a.active { 
+            color: var(--text-main); 
+        }
+
+        .user-profile-container { 
+            display: flex; 
+            align-items: center; 
+            gap: 12px; 
+            cursor: pointer; 
+            position: relative; 
+            background: rgba(255, 255, 255, 0.05); 
+            border: 1px solid rgba(255, 255, 255, 0.1); 
+            border-radius: 50px; 
+            padding: 5px 5px 5px 20px; 
+            transition: all 0.3s ease; 
+        }
+
+        .user-profile-container:hover { 
+            background: rgba(255, 255, 255, 0.1); 
+            border-color: rgba(255, 255, 255, 0.3); 
+            transform: translateY(-1px); 
+        }
+
+        .user-name { 
+            font-size: 0.95rem; 
+            font-weight: 500; 
+            color: var(--text-main); 
+            white-space: nowrap; 
+        }
+
+        .user-avatar { 
+            width: 40px; 
+            height: 40px; 
+            border-radius: 50%; 
+            border: 2px solid rgba(255,255,255,0.1); 
+            object-fit: cover; 
+        }
+        
+        .profile-dropdown { 
+            position: absolute; 
+            top: 60px; 
+            right: 0; 
+            background: #141414; 
+            border: 1px solid var(--glass-border); 
+            border-radius: 16px; 
+            width: 180px; 
+            display: none; 
+            flex-direction: column; 
+            overflow: hidden; 
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5); 
+            padding: 5px; 
+        }
+
+        .profile-dropdown.active { 
+            display: flex; 
+        }
+
+        .dropdown-item { 
+            padding: 12px 15px; 
+            color: var(--text-muted); 
+            background: transparent; 
+            border: none; 
+            text-decoration: none; 
+            font-size: 0.9rem; 
+            transition: 0.2s; 
+            text-align: left; 
+            border-radius: 8px; 
+            margin-bottom: 2px; 
+            cursor: pointer; 
+        }
+
+        .dropdown-item:hover { 
+            background: rgba(255,255,255,0.1); 
+            color: white; 
+        }
+
+        .dropdown-item.logout { 
+            color: #ff6b6b; 
+        }
+        
+        .menu-toggle { 
+            display: none; 
+            cursor: pointer; 
+            color: white; 
+            font-size: 1.5rem; 
+        }
+
+        /* --- SUPPORT CONTENT --- */
+        .support-hero {
+            padding-top: 150px; 
+            padding-bottom: 60px;
+            text-align: center;
+        }
+
+        .support-hero h1 { 
+            font-size: clamp(2.5rem, 5vw, 3.5rem); 
+            font-weight: 700; 
+            line-height: 1.2; 
+            margin-bottom: 20px; 
+        }
+
+        .support-hero p { 
+            font-size: clamp(1rem, 2vw, 1.2rem); 
+            color: var(--text-muted); 
+            max-width: 600px; 
+            margin: 0 auto 40px auto; 
+            line-height: 1.6; 
+        }
+
+        .search-container {
+            max-width: 600px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 20px 25px 20px 50px;
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--glass-border);
+            border-radius: 50px;
+            color: var(--text-main);
+            font-size: 1.1rem;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .search-input:focus {
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.2rem;
+            color: var(--text-muted);
+        }
+
+        /* --- FAQ SECTION --- */
+        .faq-section { 
+            padding: 60px 0; 
+            border-top: 1px solid var(--glass-border); 
+        }
+
+        .section-header { 
+            margin-bottom: 50px; 
+            text-align: center; 
+        }
+
+        .section-label { 
+            font-size: 0.85rem; 
+            color: var(--text-muted); 
+            border: 1px solid var(--glass-border); 
+            padding: 8px 16px; 
+            border-radius: 30px; 
+            text-transform: uppercase; 
+            letter-spacing: 2px; 
+            display: inline-block; 
+            margin-bottom: 20px; 
+        }
+
+        .section-title { 
+            font-size: clamp(2rem, 4vw, 2.5rem); 
+            font-weight: 700; 
+        }
+
+        .faq-wrapper {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .faq-item {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            margin-bottom: 15px;
+            overflow: hidden;
+            transition: background 0.3s;
+        }
+
+        .faq-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .faq-question {
+            padding: 20px 25px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 500;
+            font-size: 1.1rem;
+            color: var(--text-main);
+        }
+
+        .faq-icon {
+            font-size: 1.5rem;
+            color: var(--text-muted);
+            transition: transform 0.3s ease;
+        }
+
+        .faq-item.active .faq-icon {
+            transform: rotate(45deg);
+            color: var(--text-main);
+        }
+
+        .faq-answer {
+            padding: 0 25px;
+            max-height: 0;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        .faq-item.active .faq-answer {
+            padding: 0 25px 25px 25px;
+            max-height: 500px;
+        }
+
+        /* --- CONTACT SECTION --- */
+        .contact-section { 
+            padding: 80px 0; 
+            border-top: 1px solid var(--glass-border); 
+        }
+
+        .contact-wrapper {
+            max-width: 600px;
+            margin: 0 auto;
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--glass-border);
+            padding: 50px;
+            border-radius: 24px;
+        }
+
+        .contact-wrapper h3 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+        }
+
+        .contact-wrapper p {
+            color: var(--text-muted);
+            margin-bottom: 30px;
+            font-size: 0.95rem;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            color: var(--text-main);
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .form-control:focus {
+            border-color: rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        textarea.form-control {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .submit-btn {
+            background: var(--text-main);
+            color: var(--bg-dark);
+            border: none;
+            padding: 15px;
+            width: 100%;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .submit-btn:hover {
+            background: #e0e0e0;
+        }
+
+        /* --- FOOTER --- */
+        footer { 
+            background: rgba(0, 0, 0, 0.4); 
+            border-top: 1px solid var(--glass-border); 
+            padding: 80px 0 30px 0; 
+            margin-top: auto; 
+            backdrop-filter: blur(10px); 
+        }
+
+        .footer-grid { 
+            display: grid; 
+            grid-template-columns: 1.5fr 1fr 1fr 1fr; 
+            gap: 40px; 
+            margin-bottom: 50px; 
+        }
+
+        .footer-col h4 { 
+            color: var(--text-main); 
+            font-size: 1.1rem; 
+            margin-bottom: 25px; 
+            font-weight: 600; 
+        }
+
+        .footer-col ul { 
+            list-style: none; 
+        }
+
+        .footer-col ul li { 
+            margin-bottom: 12px; 
+        }
+
+        .footer-col ul li a { 
+            color: var(--text-muted); 
+            text-decoration: none; 
+            font-size: 0.95rem; 
+            transition: color 0.3s; 
+        }
+
+        .footer-col ul li a:hover { 
+            color: var(--primary-color); 
+        }
+
+        .footer-desc { 
+            color: var(--text-muted); 
+            line-height: 1.6; 
+            margin-top: 20px; 
+            max-width: 300px; 
+            font-size: 0.95rem; 
+        }
+
+        .social-icons { 
+            display: flex; 
+            gap: 15px; 
+            margin-top: 25px; 
+        }
+
+        .social-icon { 
+            width: 35px; 
+            height: 35px; 
+            border-radius: 50%; 
+            background: rgba(255, 255, 255, 0.1); 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            color: white; 
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+
+        .social-icon:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .footer-bottom { 
+            border-top: 1px solid var(--glass-border); 
+            padding-top: 30px; 
+            text-align: center; 
+            color: rgba(255, 255, 255, 0.4); 
+            font-size: 0.9rem; 
+        }
+
+        /* --- RESPONSIVE --- */
+        @media (max-width: 968px) {
+            .footer-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 768px) {
+            nav { height: 70px; }
+            .logo, .logo-icon { font-size: 1.5rem; }
+            .nav-container { display: flex; justify-content: space-between; }
+            .nav-links { display: none; }
+            .user-profile-container { padding: 5px; border: none; background: transparent; }
+            .user-name { display: none; }
+            .menu-toggle { display: block; }
+            
+            .support-hero { padding-top: 120px; padding-bottom: 40px; }
+            .faq-section { padding: 50px 0; }
+            .contact-section { padding: 50px 0; }
+            .contact-wrapper { padding: 30px; }
+
+            .footer-grid { grid-template-columns: 1fr; gap: 40px; text-align: center; }
+            .social-icons { justify-content: center; }
+            .footer-desc { margin: 20px auto; }
+        }
+
+        @media (max-width: 480px) {
+            .container { padding: 0 15px; }
+            .contact-wrapper { padding: 25px; }
+            .faq-question { padding: 15px 20px; font-size: 1rem; }
+            .faq-item.active .faq-answer { padding: 0 20px 20px 20px; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="loader-overlay">
+        <div class="spinner"></div>
+    </div>
+
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="logo">
+                <span class="logo-icon">❖</span>
+                WAY<span>MATE</span>
+            </a>
+            <ul class="nav-links">
+                <li><a href="find-ride.html">Find a Ride</a></li>
+                <li><a href="offer-ride.html">Offer a Ride</a></li>
+                <li><a href="about-us.html">About</a></li>
+                <li><a href="support.html" class="active" style="color:white;">Support</a></li>
+            </ul>
+
+            <div class="user-profile-container" onclick="toggleDropdown()">
+                <span class="user-name" id="nav-user-name">Loading...</span>
+                <img src="" alt="Profile" class="user-avatar" id="nav-user-img" style="display:none; background:#333;">
+                <div class="profile-dropdown" id="profileDropdown">
+                    <button onclick="window.location.href='profile.html'" class="dropdown-item">My Profile</button>
+                    <button onclick="window.location.href='my-rides.html'" class="dropdown-item">My Rides</button>
+                    <button onclick="logoutUser()" class="dropdown-item logout">Log Out</button>
+                </div>
+            </div>
+
+            <div class="menu-toggle">☰</div>
+        </div>
+    </nav>
+
+    <section class="support-hero">
+        <div class="container">
+            <h1>How can we <span class="highlight">help?</span></h1>
+            <p>Search our knowledge base or browse frequently asked questions to get the answers you need for a smooth journey.</p>
+            
+            <div class="search-container">
+                <span class="search-icon">🔍</span>
+                <input type="text" class="search-input" placeholder="Search for articles, topics, or keywords...">
+            </div>
+        </div>
+    </section>
+
+    <section class="faq-section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-label">Common Questions</span>
+                <h2 class="section-title">Frequently Asked</h2>
+            </div>
+            
+            <div class="faq-wrapper">
+                <div class="faq-item">
+                    <div class="faq-question" onclick="toggleFAQ(this)">
+                        How do I book a ride on Waymate?
+                        <span class="faq-icon">+</span>
+                    </div>
+                    <div class="faq-answer">
+                        Simply navigate to the "Find a Ride" page, enter your departure and destination points along with your travel date. Browse the available drivers heading your way, select the one that fits your schedule, and tap "Book Seat."
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question" onclick="toggleFAQ(this)">
+                        Are the drivers verified for safety?
+                        <span class="faq-icon">+</span>
+                    </div>
+                    <div class="faq-answer">
+                        Yes! Safety is our top priority. We verify every user's identity via government-issued ID and phone number. We also maintain a strict two-way rating and review system so you can review a driver's track record before booking.
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question" onclick="toggleFAQ(this)">
+                        What happens if my driver cancels?
+                        <span class="faq-icon">+</span>
+                    </div>
+                    <div class="faq-answer">
+                        If a driver cancels your ride, you will receive an immediate full refund to your original payment method. We will also help you quickly find an alternative ride heading to your destination.
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question" onclick="toggleFAQ(this)">
+                        How do I offer a ride and get paid?
+                        <span class="faq-icon">+</span>
+                    </div>
+                    <div class="faq-answer">
+                        Go to "Offer a Ride," input your trip details, vehicle information, and the contribution amount you're requesting per seat. Once the ride is complete, funds are automatically transferred to your linked bank account within 48 hours.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="contact-section">
+        <div class="container">
+            <div class="contact-wrapper">
+                <h3>Still need help?</h3>
+                <p>If you couldn't find the answer in our FAQs, send us a message and our support team will get back to you within 24 hours.</p>
+                
+                <form id="support-form" onsubmit="event.preventDefault(); alert('Message sent successfully!');">
+                    <div class="form-group">
+                        <input type="text" class="form-control" placeholder="Your Name" required>
+                    </div>
+                    <div class="form-group">
+                        <input type="email" class="form-control" placeholder="Email Address" required>
+                    </div>
+                    <div class="form-group">
+                        <select class="form-control" required style="appearance: none; background: rgba(255,255,255,0.03);">
+                            <option value="" disabled selected>Select an issue topic...</option>
+                            <option value="booking">Ride Booking / Cancellation</option>
+                            <option value="account">Account & Profile</option>
+                            <option value="payment">Payments & Refunds</option>
+                            <option value="safety">Safety Report</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <textarea class="form-control" placeholder="Describe your issue in detail..." required></textarea>
+                    </div>
+                    <button type="submit" class="submit-btn">Send Message</button>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-col">
+                    <a href="#" class="logo" style="font-size: 1.5rem;">
+                        <span class="logo-icon" style="font-size: 1.5rem;">❖</span>WAY<span>MATE</span>
+                    </a>
+                    <p class="footer-desc">Revolutionizing urban mobility.</p>
+                    <div class="social-icons">
+                        <a href="#" class="social-icon">𝕏</a>
+                        <a href="#" class="social-icon">In</a>
+                        <a href="#" class="social-icon">Ig</a>
+                    </div>
+                </div>
+                <div class="footer-col">
+                    <h4>Company</h4>
+                    <ul>
+                        <li><a href="about-us.html">About Us</a></li>
+                        <li><a href="#">Careers</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Product</h4>
+                    <ul>
+                        <li><a href="find-ride.html">Find a Ride</a></li>
+                        <li><a href="offer-ride.html">Offer a Ride</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Support</h4>
+                    <ul>
+                        <li><a href="support.html" style="color:var(--primary-color);">Help Center</a></li>
+                        <li><a href="#">Contact Us</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2023 Waymate Inc.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script type="module">
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { app } from "./firebase-config.js"; 
+
+        const auth = getAuth(app);
+        const loader = document.getElementById('loader-overlay');
+
+        // Authentication State Observer
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                document.getElementById('nav-user-name').textContent = user.displayName || "User";
+                const img = document.getElementById('nav-user-img');
+                if(user.photoURL) {
+                    img.src = user.photoURL;
+                    img.style.display = 'block';
+                }
+            } else {
+                // If you want Support page public, you can leave this empty.
+                // Otherwise, redirect to login: window.location.href = "login.html";
+                document.getElementById('nav-user-name').textContent = "Guest";
+            }
+            loader.style.display = 'none';
+            document.body.classList.add('loaded');
+        });
+
+        // Global functions for inline HTML calls
+        window.logoutUser = () => {
+            signOut(auth).then(() => {
+                window.location.href = "login.html";
+            }).catch((error) => {
+                console.error("Error signing out", error);
+            });
+        };
+
+        window.toggleDropdown = () => {
+            const dropdown = document.getElementById('profileDropdown');
+            dropdown.classList.toggle('active');
+        };
+
+        // Custom function for FAQ Accordion
+        window.toggleFAQ = (element) => {
+            const parent = element.parentElement;
+            // Optional: Close other open FAQs
+            const allItems = document.querySelectorAll('.faq-item');
+            allItems.forEach(item => {
+                if(item !== parent) item.classList.remove('active');
+            });
+            // Toggle current
+            parent.classList.toggle('active');
+        };
+
+        // Close dropdown when clicking outside
+        window.onclick = function(event) {
+            if (!event.target.closest('.user-profile-container')) {
+                const dropdown = document.getElementById('profileDropdown');
+                if (dropdown && dropdown.classList.contains('active')) {
+                    dropdown.classList.remove('active');
+                }
+            }
+        };
+    </script>
+
+</body>
+</html>

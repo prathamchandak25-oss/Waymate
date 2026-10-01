@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile | Waymate</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* --- CORE VARIABLES --- */
+        :root {
+            --primary-color: #ffffff;
+            --bg-dark: #0a0a0a;
+            --text-main: #ffffff;
+            --text-muted: #a1a1a1;
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-blur: blur(16px);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            background: linear-gradient(135deg, #050505 0%, #141414 100%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex; flex-direction: column; align-items: center;
+            opacity: 0; transition: opacity 0.3s ease;
+        }
+        body.loaded { opacity: 1; }
+
+        /* --- NAVBAR --- */
+        nav {
+            width: 100%; height: 80px; display: flex; align-items: center; justify-content: center;
+            border-bottom: 1px solid var(--glass-border); background: rgba(10,10,10,0.5);
+            backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 100;
+        }
+        .nav-content { width: 100%; max-width: 800px; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 1.5rem; font-weight: 700; color: white; text-decoration: none; }
+        .back-link { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; transition: 0.3s; }
+        .back-link:hover { color: white; }
+
+        /* --- PROFILE CONTAINER --- */
+        .main-container { width: 100%; max-width: 600px; padding: 40px 20px; flex: 1; display: flex; flex-direction: column; }
+
+        .profile-header { text-align: center; margin-bottom: 40px; }
+
+        .avatar-large {
+            width: 100px; height: 100px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.1);
+            object-fit: cover; margin-bottom: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        /* Editable Name */
+        .name-wrapper { position: relative; display: inline-block; max-width: 100%; }
+        .name-input {
+            background: transparent; border: none; border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            color: white; font-size: 1.8rem; font-weight: 600; text-align: center;
+            width: 100%; padding: 5px 25px 5px 5px; transition: 0.3s; border-radius: 4px;
+        }
+        .name-input:focus { outline: none; border-bottom-color: white; background: rgba(255,255,255,0.05); }
+        .edit-icon { position: absolute; right: 0; top: 50%; transform: translateY(-50%); font-size: 1rem; color: var(--text-muted); pointer-events: none; }
+        .user-email { color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; }
+
+        /* --- FORM CARDS --- */
+        .glass-card {
+            background: var(--glass-bg); border: 1px solid var(--glass-border);
+            border-radius: 20px; padding: 30px; margin-bottom: 25px;
+            /* Ensure card is always visible */
+            display: block; opacity: 1; 
+        }
+        
+        .card-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; }
+        
+        .form-input {
+            width: 100%; padding: 12px 16px; border-radius: 12px;
+            background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border);
+            color: white; font-size: 1rem; transition: 0.3s;
+        }
+        .form-input:focus { outline: none; border-color: rgba(255,255,255,0.3); background: rgba(0,0,0,0.5); }
+
+        /* --- DRIVER TOGGLE --- */
+        .toggle-container {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 15px; background: rgba(255,255,255,0.05); border-radius: 12px;
+        }
+        .toggle-label { font-size: 1rem; font-weight: 500; }
+        
+        .switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #333; transition: .4s; border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 20px; width: 20px;
+            left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;
+        }
+        input:checked + .slider { background-color: #4CAF50; }
+        input:checked + .slider:before { transform: translateX(24px); }
+
+        /* Driver Section Animation */
+        #driver-section { display: none; margin-top: 20px; animation: slideDown 0.3s ease; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- SAVE BUTTON --- */
+        .btn-save {
+            width: 100%; padding: 16px; border-radius: 50px; border: none;
+            background: white; color: black; font-weight: 600; font-size: 1.1rem;
+            cursor: pointer; transition: 0.3s; margin-top: 10px;
+        }
+        .btn-save:hover { background: #e0e0e0; transform: translateY(-2px); box-shadow: 0 10px 20px rgba(255,255,255,0.1); }
+        .btn-save:disabled { opacity: 0.5; cursor: wait; }
+
+        #status-msg { text-align: center; margin-top: 15px; font-size: 0.9rem; min-height: 20px; }
+        .success { color: #4CAF50; }
+        .error { color: #ff6b6b; }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div class="nav-content">
+            <a href="index.html" class="logo">WAYMATE</a>
+            <a href="index.html" class="back-link">← Back to Home</a>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        
+        <div class="profile-header">
+            <img src="" id="profile-img" class="avatar-large" alt="Profile">
+            <div class="user-title">
+                <div class="name-wrapper">
+                    <input type="text" id="name-input" class="name-input" value="Loading...">
+                    <span class="edit-icon">✎</span>
+                </div>
+                <p id="display-email" class="user-email">user@example.com</p>
+            </div>
+        </div>
+
+        <div class="glass-card">
+            <div class="card-title">Passenger Details</div>
+            
+            <div class="form-group">
+                <label>Mobile Number <span style="color:#ff6b6b">*</span></label>
+                <input type="tel" id="phone" class="form-input" placeholder="+91 98765 43210">
+                <small style="color:#666; font-size:0.75rem; margin-top:5px; display:block;">Required for coordinating rides.</small>
+            </div>
+
+            <div class="form-group">
+                <label>Bio / About Me</label>
+                <input type="text" id="bio" class="form-input" placeholder="Student at MIT, love music...">
+            </div>
+        </div>
+
+        <div class="glass-card">
+            <div class="card-title">Driver Settings</div>
+            
+            <div class="toggle-container">
+                <span class="toggle-label">I want to offer rides</span>
+                <label class="switch">
+                    <input type="checkbox" id="driver-toggle">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div id="driver-section">
+                <div class="form-group">
+                    <label>Car Model</label>
+                    <input type="text" id="car-model" class="form-input" placeholder="e.g. Swift Dzire, Honda City">
+                </div>
+                <div class="form-group">
+                    <label>Car Color</label>
+                    <input type="text" id="car-color" class="form-input" placeholder="e.g. White, Silver, Red">
+                </div>
+                <div class="form-group">
+                    <label>Vehicle Number Plate</label>
+                    <input type="text" id="car-plate" class="form-input" placeholder="e.g. MH 12 AB 1234" style="text-transform: uppercase;">
+                </div>
+            </div>
+        </div>
+
+        <button id="save-btn" class="btn-save">Save Profile</button>
+        <p id="status-msg"></p>
+
+    </div>
+
+    <script type="module">
+        import { getAuth, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { app } from "./firebase-config.js"; 
+
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // DOM Elements
+        const nameInput = document.getElementById('name-input');
+        const emailEl = document.getElementById('display-email');
+        const imgEl = document.getElementById('profile-img');
+        const phoneInput = document.getElementById('phone');
+        const bioInput = document.getElementById('bio');
+        const driverToggle = document.getElementById('driver-toggle');
+        const driverSection = document.getElementById('driver-section');
+        const carModelInput = document.getElementById('car-model');
+        const carColorInput = document.getElementById('car-color');
+        const carPlateInput = document.getElementById('car-plate');
+        const saveBtn = document.getElementById('save-btn');
+        const statusMsg = document.getElementById('status-msg');
+
+        let currentUser = null;
+
+        // 1. Auth & Load Data
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUser = user;
+                document.body.classList.add('loaded');
+
+                // Fill Auth Data
+                nameInput.value = user.displayName || "User";
+                emailEl.textContent = user.email;
+                imgEl.src = user.photoURL || "https://ui-avatars.com/api/?name=User";
+
+                // Load Firestore Data
+                await loadUserProfile(user.uid);
+            } else {
+                window.location.href = "login.html";
+            }
+        });
+
+        // 2. Load from Firestore
+        async function loadUserProfile(uid) {
+            try {
+                if (!auth.currentUser) return; 
+
+                const docRef = doc(db, "users", uid);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    
+                    if(data.name) nameInput.value = data.name;
+                    phoneInput.value = data.phone || "";
+                    bioInput.value = data.bio || "";
+                    
+                    // --- FIX IS HERE: ALWAYS LOAD CAR DATA (If available) ---
+                    // We load these regardless of whether isDriver is currently true/false
+                    // This ensures that if they toggle ON again, the data is waiting there.
+                    if (data.carModel) carModelInput.value = data.carModel;
+                    if (data.carColor) carColorInput.value = data.carColor;
+                    if (data.carPlate) carPlateInput.value = data.carPlate;
+
+                    // Handle Driver Toggle State & Visibility
+                    if (data.isDriver) {
+                        driverToggle.checked = true;
+                        driverSection.style.display = "block";
+                    } else {
+                        driverToggle.checked = false;
+                        driverSection.style.display = "none";
+                    }
+                }
+            } catch (error) {
+                console.error("Error loading profile:", error);
+            }
+        }
+
+        // 3. Driver Toggle Listener
+        driverToggle.addEventListener('change', (e) => {
+            driverSection.style.display = e.target.checked ? "block" : "none";
+        });
+
+        // 4. Save Button Logic
+        saveBtn.addEventListener('click', async () => {
+            if (!currentUser) return;
+
+            // --- Validation ---
+            if (!nameInput.value.trim()) {
+                statusMsg.textContent = "Name cannot be empty.";
+                statusMsg.className = "error";
+                return;
+            }
+
+            if (!phoneInput.value) {
+                statusMsg.textContent = "Please enter your Mobile number.";
+                statusMsg.className = "error";
+                return;
+            }
+
+            // Only validate car details if the user is actively trying to be a driver
+            if (driverToggle.checked) {
+                if (!carModelInput.value || !carColorInput.value || !carPlateInput.value) {
+                    statusMsg.textContent = "Please fill all car details.";
+                    statusMsg.className = "error";
+                    return;
+                }
+            }
+
+            saveBtn.disabled = true;
+            saveBtn.textContent = "Saving...";
+            statusMsg.textContent = "";
+
+            try {
+                // Update Google Auth Name
+                if (nameInput.value !== currentUser.displayName) {
+                    await updateProfile(currentUser, { displayName: nameInput.value });
+                }
+
+                // Prepare Data
+                const userProfile = {
+                    uid: currentUser.uid,
+                    name: nameInput.value,
+                    email: currentUser.email,
+                    photoURL: currentUser.photoURL,
+                    phone: phoneInput.value,
+                    bio: bioInput.value,
+                    isDriver: driverToggle.checked, 
+                    lastUpdated: new Date()
+                };
+
+                // --- KEY FIX FOR SAVING: Always Save Car Data ---
+                // Even if toggle is OFF, we save the inputs if they have text.
+                // This effectively "Backs up" their data so it's not lost.
+                if (carModelInput.value) userProfile.carModel = carModelInput.value;
+                if (carColorInput.value) userProfile.carColor = carColorInput.value;
+                if (carPlateInput.value) userProfile.carPlate = carPlateInput.value.toUpperCase();
+
+                // Save to Firestore
+                await setDoc(doc(db, "users", currentUser.uid), userProfile, { merge: true });
+
+                statusMsg.textContent = "Profile updated successfully!";
+                statusMsg.className = "success";
+
+            } catch (error) {
+                console.error("Error saving profile:", error);
+                statusMsg.textContent = "Error saving: " + error.message;
+                statusMsg.className = "error";
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.textContent = "Save Profile";
+            }
+        });
+
+    </script>
+</body>
+</html>

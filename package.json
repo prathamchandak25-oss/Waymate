@@ -1,0 +1,18 @@
+{
+  "name": "waymate",
+  "version": "1.0.0",
+  "description": "Waymate - Connect. Ride. Save. Modern urban mobility & carpooling web platform.",
+  "scripts": {
+    "start": "python server.py",
+    "serve": "npx serve -s . -l 8080"
+  },
+  "keywords": [
+    "carpooling",
+    "rideshare",
+    "waymate",
+    "firebase",
+    "maps"
+  ],
+  "author": "prathamchandak25-oss",
+  "license": "MIT"
+}

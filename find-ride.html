@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Find a Ride | Waymate</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <style>
+        /* --- CSS Variables --- */
+        :root {
+            --primary-color: #ffffff; 
+            --bg-dark: #0a0a0a;
+            --text-main: #ffffff;
+            --text-muted: #a1a1a1; 
+            --glass-bg: rgba(20, 20, 20, 0.95);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --nav-glass: rgba(10, 10, 10, 0.95);
+            --card-hover: rgba(255, 255, 255, 0.08);
+            --accent-green: #4ade80;
+            --accent-yellow: #facc15;
+            --accent-red: #f87171;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+
+        body {
+            background: #0a0a0a;
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            visibility: hidden; 
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        body.loaded { visibility: visible; opacity: 1; }
+
+        /* --- Navbar --- */
+        nav {
+            position: fixed; top: 0; left: 0; width: 100%; height: 60px; z-index: 1000;
+            background: var(--nav-glass); backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--glass-border);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .nav-container { width: 100%; max-width: 1400px; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 1.4rem; font-weight: 700; color: white; text-decoration: none; display: flex; align-items: center; }
+        .menu-toggle { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
+
+        /* --- MODAL STYLES (New) --- */
+        #driver-restriction-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95); backdrop-filter: blur(8px);
+            z-index: 9999; display: none; /* Hidden by default */
+            align-items: center; justify-content: center;
+        }
+        .modal-content {
+            background: #1a1a1a; border: 1px solid var(--glass-border);
+            padding: 40px 30px; border-radius: 20px;
+            text-align: center; max-width: 90%; width: 400px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.7);
+            transform: scale(0.9); animation: popIn 0.3s forwards;
+        }
+        @keyframes popIn { to { transform: scale(1); } }
+        .modal-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .modal-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 10px; color: white; }
+        .modal-text { color: var(--text-muted); font-size: 1rem; margin-bottom: 30px; line-height: 1.5; }
+        .modal-btn {
+            background: white; color: black; border: none;
+            padding: 14px 30px; border-radius: 50px;
+            font-weight: 600; cursor: pointer; transition: 0.2s;
+            width: 100%; font-size: 1rem;
+        }
+        .modal-btn:hover { background: #e0e0e0; transform: translateY(-2px); }
+
+        /* --- Layout --- */
+        .layout-wrapper { display: flex; flex-direction: row; height: 100%; padding-top: 60px; width: 100%; position: relative; }
+        
+        #map-container { width: 55%; height: 100%; position: relative; z-index: 1; background-color: #1a1a1a; }
+        #map { width: 100%; height: 100%; }
+
+        /* --- Results Panel --- */
+        #results-container {
+            width: 45%; height: 100%; background: #0a0a0a;
+            border-left: 1px solid var(--glass-border);
+            display: flex; flex-direction: column; position: relative;
+            z-index: 10; transition: height 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); 
+        }
+
+        .drag-handle-area {
+            display: none; width: 100%; min-height: 30px;
+            align-items: center; justify-content: center; cursor: grab;
+            background: #0a0a0a; border-top: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px 20px 0 0; flex-shrink: 0;
+        }
+        .drag-bar { width: 50px; height: 5px; background: rgba(255, 255, 255, 0.3); border-radius: 10px; }
+
+        .content-scroll-wrapper { flex: 1; overflow-y: auto; padding: 20px 30px 80px 30px; display: flex; flex-direction: column; }
+
+        /* --- Search UI --- */
+        .search-header { margin-bottom: 20px; }
+        h2 { margin-bottom: 20px; font-weight: 700; }
+
+        .input-group { position: relative; margin-bottom: 15px; }
+        .input-label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; font-weight: 500; }
+
+        .search-input {
+            width: 100%; padding: 14px 14px; 
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border); border-radius: 12px;
+            color: white; font-size: 0.95rem; outline: none; transition: 0.3s;
+        }
+        .search-input:focus { background: rgba(255, 255, 255, 0.1); border-color: white; }
+
+        select.search-input {
+            appearance: none; -webkit-appearance: none; cursor: pointer;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat; background-position: right 14px center; background-size: 16px; padding-right: 40px;
+        }
+        select.search-input option { background-color: #1a1a1a; color: white; padding: 12px; }
+
+        .location-btn {
+            position: absolute; right: 10px; top: 38px; background: none; border: none;
+            color: var(--text-muted); cursor: pointer; padding: 5px;
+        }
+        .location-btn:hover { color: #4ade80; }
+
+        .search-row-split { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+
+        .search-btn {
+            width: 100%; background: white; color: black; border: none;
+            border-radius: 12px; padding: 16px; font-weight: 600; cursor: pointer;
+            transition: transform 0.2s; font-size: 1rem;
+        }
+        .search-btn:hover { transform: translateY(-2px); background: #e0e0e0; }
+
+        /* --- Ride Cards --- */
+        .rides-list { margin-top: 10px; display: flex; flex-direction: column; gap: 15px; }
+        
+        .ride-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px; padding: 20px;
+            cursor: pointer; transition: all 0.2s ease;
+            animation: fadeIn 0.4s ease;
+        }
+        .ride-card:hover { background: var(--card-hover); border-color: rgba(255,255,255,0.3); }
+
+        .ride-time-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .time-val { font-size: 1.1rem; font-weight: 700; color: white; }
+        
+        .dist-badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 4px; margin-top: 4px; display: inline-block; }
+        .dist-green { color: var(--accent-green); background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.2); }
+        .dist-yellow { color: var(--accent-yellow); background: rgba(250, 204, 21, 0.1); border: 1px solid rgba(250, 204, 21, 0.2); }
+        .dist-red { color: var(--accent-red); background: rgba(248, 113, 113, 0.1); border: 1px solid rgba(248, 113, 113, 0.2); }
+
+        .driver-row {
+            display: flex; justify-content: space-between; align-items: center;
+            border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;
+        }
+        .driver-info { display: flex; align-items: center; gap: 10px; }
+        .driver-avatar {
+            width: 35px; height: 35px; border-radius: 50%; background: #333;
+            object-fit: cover; border: 1px solid rgba(255,255,255,0.2);
+        }
+        .price-tag { font-size: 1.2rem; font-weight: 700; color: var(--accent-green); }
+
+        .empty-state { text-align: center; color: var(--text-muted); padding: 40px; }
+
+        /* Detail Button in Card */
+        .btn-details {
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+            color: white; padding: 6px 14px; border-radius: 20px; font-size: 0.8rem;
+            cursor: pointer; transition: 0.2s;
+        }
+        .btn-details:hover { background: rgba(255,255,255,0.2); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .autocomplete-dropdown {
+            position: absolute; top: 100%; left: 0; right: 0;
+            background: #1a1a1a; border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 0 0 12px 12px; max-height: 200px;
+            overflow-y: auto; z-index: 1000;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: none;
+        }
+        .autocomplete-item {
+            padding: 10px 14px; color: #ccc; font-size: 0.85rem;
+            cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;
+        }
+        .autocomplete-item:hover { background: rgba(255,255,255,0.1); color: white; }
+        .autocomplete-item:last-child { border-bottom: none; }
+        .leaflet-container { background: #242f3e !important; }
+
+        /* --- MOBILE RESPONSIVE --- */
+        @media (max-width: 768px) {
+            .layout-wrapper { display: block; }
+            #map-container { width: 100%; height: 100%; position: fixed; top: 0; left: 0; z-index: 0; }
+            
+            #results-container {
+                width: 100%; position: fixed; bottom: 0; left: 0;
+                border-left: none; border-radius: 20px 20px 0 0;
+                box-shadow: 0 -5px 30px rgba(0,0,0,0.5); z-index: 100;
+            }
+            .drag-handle-area { display: flex; }
+            .content-scroll-wrapper { padding: 10px 20px 80px 20px; }
+            
+            #results-container.h-full { height: 80vh; }
+            #results-container.h-half { height: 50vh; }
+            #results-container.h-min { height: 140px; overflow: hidden; } 
+        }
+    </style>
+</head>
+<body>
+
+    <div id="driver-restriction-modal">
+        <div class="modal-content">
+            <div class="modal-icon">🚗</div>
+            <div class="modal-title">You are Driving</div>
+            <p class="modal-text">You currently have an active ride offered. You cannot search for rides while you are the driver.</p>
+            <button class="modal-btn" onclick="window.location.href='my-rides.html'">Manage My Rides</button>
+        </div>
+    </div>
+
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="logo">WAYMATE</a>
+            <button class="menu-toggle">☰</button>
+        </div>
+    </nav>
+
+    <div class="layout-wrapper">
+        <div id="map-container">
+            <div id="map"></div>
+        </div>
+
+        <div id="results-container" class="h-half">
+            <div class="drag-handle-area" id="drag-handle">
+                <div class="drag-bar"></div>
+            </div>
+
+            <div class="content-scroll-wrapper">
+                <div class="search-header">
+                    <h2>Find a ride</h2>
+                    
+                    <div class="input-group">
+                        <label class="input-label">Pickup Point</label>
+                        <input type="text" id="origin" class="search-input" placeholder="e.g. Mumbai">
+                        <button class="location-btn" onclick="getCurrentLocation()">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="22" y1="12" x2="18" y2="12"></line><line x1="6" y1="12" x2="2" y2="12"></line><line x1="12" y1="6" x2="12" y2="2"></line><line x1="12" y1="22" x2="12" y2="18"></line><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
+                        </button>
+                    </div>
+
+                    <div class="input-group">
+                        <label class="input-label">Drop Point</label>
+                        <input type="text" id="destination" class="search-input" placeholder="e.g. Pune">
+                    </div>
+
+                    <div class="search-row-split">
+                        <div>
+                            <label class="input-label">Preferred Time</label>
+                            <input type="time" id="pickup-time" class="search-input" style="color-scheme: dark;">
+                        </div>
+                        <div>
+                            <label class="input-label">Time Flexibility</label>
+                            <select id="time-flexibility" class="search-input">
+                                <option value="0">Exact time</option>
+                                <option value="60">+/- 1 hr</option>
+                                <option value="120" selected>+/- 2 hrs</option>
+                                <option value="9999">Anytime Today</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label class="input-label">Route Radius (Distance from Path)</label>
+                        <select id="search-radius" class="search-input">
+                            <option value="2">2 km (Strict)</option>
+                            <option value="5" selected>5 km (Standard)</option>
+                            <option value="10">10 km (Flexible)</option>
+                            <option value="15">15 km (Wide Area)</option>
+                        </select>
+                    </div>
+
+                    <button class="search-btn" id="search-btn">Search Rides</button>
+                </div>
+
+                <div id="rides-list" class="rides-list">
+                    <div class="empty-state">Enter details to find a ride.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="./find-ride-map.js"></script>
+</body>
+</html>

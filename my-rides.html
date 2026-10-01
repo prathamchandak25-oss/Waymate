@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>My Activity | Waymate</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-dark: #0a0a0a;
+            --text-main: #ffffff;
+            --text-muted: #a1a1a1;
+            --glass-bg: #1a1a1a;
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --accent-green: #4ade80;
+            --accent-blue: #60a5fa;
+            --accent-red: #ff6b6b;
+            --accent-yellow: #facc15;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            background: #050505;
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex; flex-direction: column; align-items: center;
+            opacity: 0; transition: opacity 0.3s ease; overflow-x: hidden;
+        }
+        body.loaded { opacity: 1; }
+
+        nav {
+            width: 100%; height: 60px; display: flex; align-items: center; justify-content: center;
+            border-bottom: 1px solid var(--glass-border); background: rgba(10,10,10,0.8);
+            backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 100;
+        }
+        .nav-content { width: 100%; max-width: 800px; padding: 0 16px; display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 1.2rem; font-weight: 700; color: white; text-decoration: none; }
+        .back-link { color: var(--text-muted); text-decoration: none; font-size: 0.85rem; display: flex; align-items: center; gap: 6px; }
+
+        .main-container { width: 100%; max-width: 800px; padding: 20px 16px; flex: 1; }
+        .page-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 5px; }
+        .page-subtitle { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 24px; }
+
+        .rides-list { display: flex; flex-direction: column; gap: 20px; }
+        .ride-card { border-radius: 16px; padding: 0; position: relative; overflow: hidden; border: 1px solid var(--glass-border); transition: transform 0.2s; }
+
+        .role-driver { background: linear-gradient(145deg, rgba(20, 30, 20, 1) 0%, rgba(10, 10, 10, 1) 100%); border-left: 4px solid var(--accent-green); }
+        .role-passenger { background: linear-gradient(145deg, rgba(20, 25, 40, 1) 0%, rgba(10, 10, 10, 1) 100%); border-left: 4px solid var(--accent-blue); }
+        .role-passenger.is-timeout { background: linear-gradient(145deg, #1a1a1a 0%, #0a0a0a 100%); border-left: 4px solid #555; opacity: 0.7; }
+
+        .role-header { padding: 10px 16px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; display: flex; justify-content: space-between; align-items: center; }
+        .role-driver .role-header { background: rgba(74, 222, 128, 0.1); color: var(--accent-green); }
+        .role-passenger .role-header { background: rgba(96, 165, 250, 0.15); color: var(--accent-blue); }
+        .role-passenger.is-timeout .role-header { background: rgba(255, 255, 255, 0.05); color: #888; }
+
+        .watermark { position: absolute; right: -20px; top: -20px; font-size: 6rem; opacity: 0.05; pointer-events: none; }
+        .card-body { padding: 16px; position: relative; z-index: 2; }
+
+        .time-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 12px; }
+        .big-time { font-size: 1.5rem; font-weight: 700; color: white; line-height: 1; }
+        .date-label { font-size: 0.85rem; color: var(--text-muted); }
+
+        .route-visual { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; border-left: 2px solid rgba(255,255,255,0.1); padding-left: 12px; }
+        .city-name { font-size: 0.9rem; font-weight: 600; display: block; color: white; line-height: 1.3; }
+        .city-sub { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; }
+
+        .status-pill { padding: 3px 8px; border-radius: 8px; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; white-space: nowrap; }
+        .st-pending { background: rgba(250, 204, 21, 0.2); color: var(--accent-yellow); }
+        .st-accepted { background: rgba(74, 222, 128, 0.2); color: var(--accent-green); }
+        .st-scheduled { background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); }
+        .st-timeout { background: rgba(255, 255, 255, 0.1); color: #aaa; border: 1px solid #555; }
+
+        .timer-badge {
+            font-size: 0.75rem; font-weight: 600; color: var(--accent-yellow);
+            background: rgba(250, 204, 21, 0.1); padding: 4px 8px; border-radius: 6px;
+            display: inline-flex; align-items: center; gap: 5px; margin-left: 10px;
+            border: 1px solid rgba(250, 204, 21, 0.3); animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+
+        .card-actions { padding: 12px 16px; border-top: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.2); gap: 8px; flex-wrap: wrap; }
+        .action-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+        .cancel-btn { color: var(--accent-red); background: transparent; border: none; font-size: 0.75rem; font-weight: 500; cursor: pointer; padding: 0; }
+        .cancel-btn:hover { text-decoration: underline; }
+
+        .btn-track { background: white; color: black; border: none; padding: 6px 12px; border-radius: 16px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 4px; text-decoration: none; white-space: nowrap; }
+        .btn-track:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255,255,255,0.1); }
+
+        .btn-chat { background: rgba(255,255,255,0.1); color: white; border: 1px solid var(--glass-border); padding: 6px 12px; border-radius: 16px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+        .btn-chat:hover { background: rgba(255,255,255,0.2); }
+
+        .passengers-box { margin: 0 16px 16px 16px; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid var(--glass-border); }
+        .pax-label { font-size: 0.7rem; color: var(--text-muted); display: block; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.8px; }
+        .pax-list { font-size: 0.85rem; color: white; font-weight: 500; }
+
+        .requests-box { margin: 12px 16px; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 12px; border: 1px solid var(--glass-border); }
+        .req-head { font-size: 0.7rem; text-transform: uppercase; color: var(--accent-yellow); margin-bottom: 8px; letter-spacing: 0.8px; font-weight: 700; }
+        .req-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .req-user { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }
+        .req-btn { background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); color: white; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; cursor: pointer; }
+
+        .contact-row { margin: 0 16px 16px 16px; padding: 10px; background: rgba(96, 165, 250, 0.1); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .contact-label { font-size: 0.7rem; color: var(--accent-blue); display: block; }
+        .contact-val { font-size: 0.85rem; font-weight: 600; }
+
+        /* MODALS */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+        .modal-box { background: #151515; border: 1px solid var(--glass-border); padding: 24px; border-radius: 16px; width: 90%; max-width: 340px; text-align: center; }
+        .btn-yes { background: var(--accent-red); color: white; border: none; padding: 10px 24px; border-radius: 50px; font-weight: 600; cursor: pointer; }
+        .btn-no { background: transparent; border: 1px solid #555; color: white; padding: 10px 24px; border-radius: 50px; cursor: pointer; margin-right: 8px; }
+
+        /* CHAT MODAL */
+        #chat-modal { align-items: flex-end; justify-content: center; padding: 0; }
+        .chat-container { width: 100%; height: 100%; max-height: 100vh; background: #121212; border-radius: 0; display: flex; flex-direction: column; border: none; position: relative; transform: translateY(100%); transition: transform 0.3s ease-out; }
+        #chat-modal.active .chat-container { transform: translateY(0); }
+        .chat-header { padding: 16px; border-bottom: 1px solid var(--glass-border); background: #1a1a1a; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; min-height: 56px; }
+        .chat-title { font-weight: 600; font-size: 1rem; color: white; }
+        .close-chat { background: none; border: none; color: var(--text-muted); font-size: 2rem; cursor: pointer; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; padding: 0; }
+        .chat-messages { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 16px; display: flex; flex-direction: column; gap: 12px; scroll-behavior: smooth; }
+        .message-row { display: flex; flex-direction: column; max-width: 80%; word-wrap: break-word; }
+        .msg-own { align-self: flex-end; align-items: flex-end; }
+        .msg-other { align-self: flex-start; align-items: flex-start; }
+        .msg-bubble { padding: 10px 14px; border-radius: 14px; font-size: 0.9rem; line-height: 1.4; word-wrap: break-word; max-width: 100%; }
+        .msg-own .msg-bubble { background: var(--accent-blue); color: white; border-bottom-right-radius: 4px; }
+        .msg-other .msg-bubble { background: #2a2a2a; color: white; border-bottom-left-radius: 4px; }
+        .msg-sender { font-size: 0.7rem; color: var(--text-muted); margin-bottom: 3px; margin-left: 4px; }
+        .msg-time { font-size: 0.65rem; opacity: 0.7; margin-top: 3px; margin-right: 4px; }
+        .chat-input-area { padding: 12px 16px; padding-bottom: max(12px, env(safe-area-inset-bottom)); border-top: 1px solid var(--glass-border); background: #1a1a1a; display: flex; gap: 8px; flex-shrink: 0; align-items: flex-end; }
+        .chat-input { flex: 1; background: #0a0a0a; border: 1px solid var(--glass-border); color: white; padding: 10px 14px; border-radius: 20px; outline: none; font-size: 16px; resize: none; max-height: 100px; min-height: 40px; }
+        .send-btn { background: var(--accent-blue); color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+
+        .loader { width: 30px; height: 30px; border: 3px solid #333; border-top-color: white; border-radius: 50%; margin: 50px auto; animation: spin 1s infinite linear; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .empty-state { text-align: center; margin-top: 60px; display: none; }
+        .btn-big { display: block; width: 80%; margin: 10px auto; padding: 14px; border-radius: 12px; font-weight: 600; text-decoration: none; text-align: center; }
+        .btn-offer { background: white; color: black; }
+        .btn-find { background: transparent; border: 1px solid white; color: white; }
+
+        @media (min-width: 600px) {
+            nav { height: 70px; } .nav-content { padding: 0 20px; }
+            .main-container { padding: 28px 20px; }
+            .chat-container { width: 90%; max-width: 500px; height: 80vh; max-height: 650px; border-radius: 20px; border: 1px solid var(--glass-border); }
+            #chat-modal { align-items: center; padding: 20px; }
+            .chat-header { border-radius: 20px 20px 0 0; } .chat-input-area { border-radius: 0 0 20px 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="confirm-modal" class="modal-overlay">
+        <div class="modal-box">
+            <h3 style="margin-bottom:10px; color:white;">Cancel Ride?</h3>
+            <p style="color:#888; margin-bottom:25px; font-size:0.9rem;">This action cannot be undone.</p>
+            <button class="btn-no" onclick="closeModal('confirm-modal')">Back</button>
+            <button class="btn-yes" onclick="executeCancellation()">Yes, Cancel</button>
+        </div>
+    </div>
+
+    <div id="request-modal" class="modal-overlay">
+        <div class="modal-box">
+            <h3 style="margin-bottom:20px; color:white;">Passenger Request</h3>
+            <div style="display:flex; justify-content:center; align-items:center; gap:15px; margin-bottom:20px;">
+                <img id="m-req-avatar" src="" style="width:50px; height:50px; border-radius:50%; background:#333;">
+                <div style="text-align:left;">
+                    <div id="m-req-name" style="font-weight:600; font-size:1.1rem;">--</div>
+                    <div style="font-size:0.8rem; color:#888;">Passenger</div>
+                </div>
+            </div>
+            <div style="background:#222; padding:15px; border-radius:10px; margin-bottom:20px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                    <span style="color:#888; font-size:0.9rem;">Seats:</span>
+                    <span id="m-req-seats" style="font-weight:600;">--</span>
+                </div>
+                <div style="display:flex; justify-content:space-between;">
+                    <span style="color:#888; font-size:0.9rem;">Earn:</span>
+                    <span style="color:var(--accent-green); font-weight:600;">₹<span id="m-req-price">--</span></span>
+                </div>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button onclick="executeRequestAction('rejected')" style="flex:1; padding:12px; background:rgba(255,107,107,0.1); color:var(--accent-red); border:1px solid var(--accent-red); border-radius:10px; cursor:pointer;">Reject</button>
+                <button onclick="executeRequestAction('accepted')" style="flex:1; padding:12px; background:var(--accent-green); color:black; border:none; border-radius:10px; font-weight:600; cursor:pointer;">Accept</button>
+            </div>
+            <div style="margin-top:15px; font-size:0.8rem; color:#666; cursor:pointer;" onclick="closeModal('request-modal')">Close</div>
+        </div>
+    </div>
+
+    <div id="chat-modal" class="modal-overlay">
+        <div class="chat-container">
+            <div class="chat-header">
+                <span class="chat-title" id="chat-title">Ride Chat</span>
+                <button class="close-chat" onclick="closeChat()">×</button>
+            </div>
+            <div class="chat-messages" id="chat-messages"></div>
+            <form class="chat-input-area" onsubmit="sendMessage(event)">
+                <textarea id="chat-input" class="chat-input" placeholder="Type a message..." autocomplete="off" rows="1"></textarea>
+                <button type="submit" class="send-btn">➤</button>
+            </form>
+        </div>
+    </div>
+
+    <nav>
+        <div class="nav-content">
+            <a href="index.html" class="logo">WAYMATE</a>
+            <a href="index.html" class="back-link">← Home</a>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <h1 class="page-title">My Activity</h1>
+        <p class="page-subtitle">Your upcoming timeline</p>
+        
+        <div id="loader" class="loader"></div>
+        <div id="rides-list" class="rides-list"></div>
+        
+        <div id="empty-state" class="empty-state">
+            <div style="font-size:4rem; margin-bottom:20px;">🛣️</div>
+            <p style="margin-bottom:30px; color:#888;">Your schedule is empty.</p>
+            <a href="offer-ride.html" class="btn-big btn-offer">Offer a Ride</a>
+            <a href="find-ride.html" class="btn-big btn-find">Find a Ride</a>
+        </div>
+    </div>
+
+    <script type="module">
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, collection, query, where, doc, updateDoc, deleteDoc, increment, getDoc, addDoc, onSnapshot, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { app } from "./firebase-config.js";
+
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const listContainer = document.getElementById('rides-list');
+        const loader = document.getElementById('loader');
+        const emptyState = document.getElementById('empty-state');
+        
+        let currentUser = null;
+        let targetId = null;
+        let activeReqData = null;
+        
+        let currentChatRideId = null;
+        let chatListener = null;
+        let timerInterval = null;
+
+        // REAL-TIME DATA STORES
+        let myDriverRides = [];
+        let incomingRequests = [];
+        let myPassengerBookings = [];
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                document.body.classList.add('loaded');
+                setupRealtimeListeners();
+            } else {
+                window.location.href = "login.html";
+            }
+        });
+
+        async function getAddressFromCoords(lat, lng) {
+            try {
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
+                const data = await res.json();
+                if (data && data.display_name) return data.display_name;
+            } catch (e) { console.error(e); }
+            return null;
+        }
+
+        // --- REAL-TIME LISTENERS ---
+        function setupRealtimeListeners() {
+            loader.style.display = 'block';
+            emptyState.style.display = 'none';
+
+            // 1. Listen for MY DRIVER RIDES
+            const q1 = query(collection(db, "rides"), where("driver_id", "==", currentUser.uid));
+            onSnapshot(q1, (snapshot) => {
+                myDriverRides = [];
+                snapshot.forEach(doc => myDriverRides.push({ id: doc.id, ...doc.data(), role: 'driver' }));
+                updateUI();
+            });
+
+            // 2. Listen for INCOMING REQUESTS (Where I am driver)
+            const q2 = query(collection(db, "bookings"), where("driver_id", "==", currentUser.uid));
+            onSnapshot(q2, (snapshot) => {
+                incomingRequests = [];
+                snapshot.forEach(doc => incomingRequests.push({ id: doc.id, ...doc.data() }));
+                updateUI();
+            });
+
+            // 3. Listen for MY PASSENGER BOOKINGS
+            const q3 = query(collection(db, "bookings"), where("passenger_id", "==", currentUser.uid));
+            onSnapshot(q3, async (snapshot) => {
+                // For passenger bookings, we need to merge with ride data.
+                // This is async, so we build a temp array.
+                const tempTrips = [];
+                
+                for (const bookingDoc of snapshot.docs) {
+                    const booking = bookingDoc.data();
+                    
+                    // --- TIMEOUT CHECK (Database Update) ---
+                    // Even though we update visual timer, we need to sync DB status
+                    if (booking.status === 'pending' && booking.created_at) {
+                        const createdTime = booking.created_at.toDate();
+                        const now = new Date();
+                        const diffMins = (now - createdTime) / 1000 / 60;
+
+                        if (diffMins > 5) {
+                            // Only update if not already timeout to avoid loop
+                            updateDoc(doc(db, "bookings", bookingDoc.id), { status: 'timeout' });
+                            booking.status = 'timeout'; 
+                        }
+                    }
+                    // ------------------------------------
+
+                    // Optimization: We re-fetch ride doc. 
+                    // In a bigger app, we'd cache these ride docs to avoid reads.
+                    const rideSnap = await getDoc(doc(db, "rides", booking.ride_id));
+                    
+                    if (rideSnap.exists()) {
+                        let pickupName = booking.pickup_name || null;
+                        let dropName = booking.drop_name || null;
+
+                        // Geocoding only if needed (and only once logically, but here simple)
+                        if (!pickupName && booking.pickup_lat) {
+                            pickupName = await getAddressFromCoords(booking.pickup_lat, booking.pickup_lng);
+                        }
+                        if (!dropName && booking.drop_lat) {
+                            dropName = await getAddressFromCoords(booking.drop_lat, booking.drop_lng);
+                        }
+
+                        tempTrips.push({
+                            id: bookingDoc.id, 
+                            ride_id: booking.ride_id,
+                            booking_status: booking.status,
+                            booking_created_at: booking.created_at, // NEED THIS FOR TIMER
+                            seats_booked: booking.seats_requested,
+                            ...rideSnap.data(), 
+                            role: 'passenger',
+                            sortTime: booking.created_at,
+                            display_origin: pickupName || rideSnap.data().origin, 
+                            display_dest: dropName || rideSnap.data().destination
+                        });
+                    }
+                }
+                
+                myPassengerBookings = tempTrips;
+                updateUI();
+            });
+        }
+
+        async function updateUI() {
+            const allTrips = [...myDriverRides, ...myPassengerBookings];
+            allTrips.sort((a, b) => (a.date_time?.seconds || 0) - (b.date_time?.seconds || 0));
+
+            let finalHTML = '';
+
+            if (allTrips.length === 0) {
+                loader.style.display = 'none';
+                listContainer.innerHTML = '';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            // We need to pass incomingRequests to the driver card generator
+            for (const trip of allTrips) {
+                if (trip.role === 'driver') {
+                    // Filter requests specific to this ride ID
+                    const relevantRequests = incomingRequests.filter(req => req.ride_id === trip.id);
+                    finalHTML += getDriverCardHTML(trip, relevantRequests);
+                } else {
+                    finalHTML += getPassengerCardHTML(trip);
+                }
+            }
+            
+            listContainer.innerHTML = finalHTML; 
+            loader.style.display = 'none';
+            emptyState.style.display = 'none';
+            
+            // START TIMER LOOP
+            startLiveTimers();
+        }
+
+        function getDriverCardHTML(ride, requests) {
+            let requestsHTML = '';
+            let passengerListHTML = '';
+            let hasAcceptedPassenger = false;
+            let acceptedNames = [];
+            let pendingList = '';
+
+            if (ride.status === 'scheduled') {
+                requests.forEach(req => {
+                    if (req.status === 'accepted') {
+                        hasAcceptedPassenger = true;
+                        acceptedNames.push(req.passenger_name);
+                    }
+
+                    if (req.status === 'pending') {
+                        // Calculate Expiry
+                        const deadline = req.created_at.toDate().getTime() + (5 * 60 * 1000); // 5 mins
+                        
+                        const reqJson = JSON.stringify({ 
+                            id: req.id, name: req.passenger_name, photo: req.passenger_photo, 
+                            seats: req.seats_requested, price: req.total_price, rideId: ride.id 
+                        }).replace(/"/g, '&quot;');
+
+                        pendingList += `
+                            <div class="req-item">
+                                <div class="req-user">
+                                    <img src="${req.passenger_photo || 'https://ui-avatars.com/api/?background=333&color=fff'}" style="width:25px; height:25px; border-radius:50%;">
+                                    <span>${req.passenger_name}</span>
+                                    <span class="timer-badge" data-deadline="${deadline}" data-id="${req.id}">⏳ --:--</span>
+                                </div>
+                                <button class="req-btn" onclick="openRequestModal(${reqJson})">View</button>
+                            </div>`;
+                    }
+                });
+
+                if (pendingList) {
+                    requestsHTML = `<div class="requests-box"><div class="req-head">Action Required</div>${pendingList}</div>`;
+                }
+
+                if (acceptedNames.length > 0) {
+                    passengerListHTML = `
+                        <div class="passengers-box">
+                            <span class="pax-label">Confirmed Passengers</span>
+                            <div class="pax-list">${acceptedNames.join(', ')}</div>
+                        </div>
+                    `;
+                }
+            }
+
+            let actionBtn = '';
+            if (ride.status === 'scheduled' && !hasAcceptedPassenger) {
+                actionBtn = `<button class="cancel-btn" onclick="openCancelModal('${ride.id}')">Cancel Ride</button>`;
+            }
+
+            let trackBtn = `<a href="ongoing-ride.html?id=${ride.id}" class="btn-track">Track 📍</a>`;
+            let chatBtn = `<button class="btn-chat" onclick="openChat('${ride.id}', 'Ride Chat')">Chat 💬</button>`;
+
+            const html = `
+                <div class="ride-card role-driver">
+                    <div class="watermark">🚗</div>
+                    <div class="role-header">
+                        <span>YOU ARE DRIVING</span>
+                        <span class="status-pill st-scheduled">${ride.status}</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="time-row">
+                            <span class="big-time">${formatTime(ride.date_time)}</span>
+                            <span class="date-label">${formatDate(ride.date_time)}</span>
+                        </div>
+                        <div class="route-visual">
+                            <div class="route-point">
+                                <span class="city-sub">Start</span>
+                                <span class="city-name">${ride.origin}</span>
+                            </div>
+                            <div class="route-point">
+                                <span class="city-sub">End</span>
+                                <span class="city-name">${ride.destination}</span>
+                            </div>
+                        </div>
+                        <div style="font-size:0.85rem; color:#888;">
+                            Car: <span style="color:white;">${ride.car_model}</span>
+                        </div>
+                    </div>
+                    ${passengerListHTML}
+                    ${requestsHTML}
+                    <div class="card-actions">
+                        <span style="color:var(--accent-green); font-weight:600; font-size:0.85rem;">${ride.seats_available} Seats</span>
+                        <div class="action-group">
+                            ${chatBtn}
+                            ${trackBtn}
+                            ${actionBtn}
+                        </div>
+                    </div>
+                </div>
+            `;
+            return html;
+        }
+
+        function getPassengerCardHTML(trip) {
+            let statusClass = 'st-' + trip.booking_status;
+            let contactHTML = '';
+            let trackBtn = '';
+            let chatBtn = '';
+            let isTimeout = (trip.booking_status === 'timeout');
+            let timerHTML = '';
+
+            if (trip.booking_status === 'accepted') {
+                contactHTML = `
+                    <div class="contact-row">
+                        <div><span class="contact-label">Driver</span><div class="contact-val">${trip.driver_name}</div></div>
+                        <div style="text-align:right;"><span class="contact-label">Car</span><div class="contact-val">${trip.car_plate}</div></div>
+                    </div>`;
+                
+                trackBtn = `<a href="ongoing-ride.html?id=${trip.ride_id}" class="btn-track">Track 📍</a>`;
+                chatBtn = `<button class="btn-chat" onclick="openChat('${trip.ride_id}', 'Driver Chat')">Chat 💬</button>`;
+            } 
+            else if (trip.booking_status === 'pending' && trip.booking_created_at) {
+                // Add Timer HTML
+                const deadline = trip.booking_created_at.toDate().getTime() + (5 * 60 * 1000);
+                timerHTML = `<div class="timer-badge" style="margin-left:auto;" data-deadline="${deadline}" data-id="${trip.id}">⏳ --:--</div>`;
+            }
+
+            const originDisplay = trip.display_origin || trip.origin;
+            const destDisplay = trip.display_dest || trip.destination;
+            const subLabel = trip.display_origin ? "Your Pickup" : "Pickup";
+
+            const html = `
+                <div class="ride-card role-passenger ${isTimeout ? 'is-timeout' : ''}">
+                    <div class="watermark">🙋</div>
+                    <div class="role-header">
+                        <span>PASSENGER</span>
+                        ${timerHTML}
+                        <span class="status-pill ${statusClass}">${trip.booking_status}</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="time-row">
+                            <span class="big-time">${formatTime(trip.date_time)}</span>
+                            <span class="date-label">${formatDate(trip.date_time)}</span>
+                        </div>
+                        <div class="route-visual">
+                            <div class="route-point">
+                                <span class="city-sub">${subLabel}</span>
+                                <span class="city-name">${originDisplay}</span>
+                            </div>
+                            <div class="route-point">
+                                <span class="city-sub">Drop</span>
+                                <span class="city-name">${destDisplay}</span>
+                            </div>
+                        </div>
+                    </div>
+                    ${contactHTML}
+                    <div class="card-actions">
+                        <span style="color:#aaa; font-size:0.8rem;">₹${trip.price_per_seat * trip.seats_booked}</span>
+                        <div class="action-group">
+                            ${chatBtn}
+                            ${trackBtn}
+                        </div>
+                    </div>
+                </div>
+            `;
+            return html;
+        }
+
+        // --- TIMER LOGIC ---
+        function startLiveTimers() {
+            if(timerInterval) clearInterval(timerInterval);
+            
+            // Only update DOM elements that actually exist
+            timerInterval = setInterval(() => {
+                const timerElements = document.querySelectorAll('.timer-badge');
+                if(timerElements.length === 0) return;
+
+                const now = Date.now();
+                
+                timerElements.forEach(el => {
+                    const deadline = parseInt(el.getAttribute('data-deadline'));
+                    const bookingId = el.getAttribute('data-id');
+                    const diff = deadline - now;
+
+                    if (diff <= 0) {
+                        el.innerText = "Expired";
+                        // Trigger actual expire logic only if visible (simple debounce)
+                        if (!el.classList.contains('expired')) {
+                            el.classList.add('expired');
+                            expireBooking(bookingId);
+                        }
+                    } else {
+                        // Format MM:SS
+                        const m = Math.floor(diff / 60000);
+                        const s = Math.floor((diff % 60000) / 1000);
+                        el.innerText = `⏳ ${m}:${s < 10 ? '0' : ''}${s}`;
+                    }
+                });
+            }, 1000);
+        }
+
+        async function expireBooking(bookingId) {
+            try {
+                // Update Firestore - This will trigger onSnapshot -> updateUI -> remove timer
+                await updateDoc(doc(db, "bookings", bookingId), { status: 'timeout' });
+            } catch (e) {
+                console.error("Timer update failed:", e);
+            }
+        }
+
+        function formatDate(timestamp) {
+            if(!timestamp) return '--';
+            return new Date(timestamp.seconds * 1000).toLocaleDateString('en-IN', { weekday:'short', day: 'numeric', month: 'short' });
+        }
+
+        function formatTime(timestamp) {
+            if(!timestamp) return '--:--';
+            return new Date(timestamp.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute:'2-digit' });
+        }
+
+        window.openCancelModal = (id) => {
+            targetId = id;
+            document.getElementById('confirm-modal').style.display = 'flex';
+        }
+
+        window.openRequestModal = (data) => {
+            activeReqData = data;
+            document.getElementById('m-req-name').innerText = data.name;
+            document.getElementById('m-req-avatar').src = data.photo || 'https://ui-avatars.com/api/?background=333&color=fff';
+            document.getElementById('m-req-seats').innerText = data.seats;
+            document.getElementById('m-req-price').innerText = data.price;
+            document.getElementById('request-modal').style.display = 'flex';
+        }
+
+        window.closeModal = (id) => {
+            document.getElementById(id).style.display = 'none';
+            targetId = null;
+        }
+
+        window.executeCancellation = async () => {
+            try {
+                await deleteDoc(doc(db, "rides", targetId));
+                closeModal('confirm-modal');
+                // loadAllActivity(); // Removed, handled by listener
+            } catch (error) {
+                console.error(error);
+                alert("Failed.");
+            }
+        }
+
+        window.executeRequestAction = async (action) => {
+            try {
+                const { id, rideId, seats } = activeReqData;
+                await updateDoc(doc(db, "bookings", id), { status: action });
+                if (action === 'accepted') {
+                    await updateDoc(doc(db, "rides", rideId), { seats_available: increment(-seats) });
+                }
+                closeModal('request-modal');
+                // loadAllActivity(); // Removed, handled by listener
+            } catch (error) {
+                console.error(error);
+                alert("Error.");
+            }
+        }
+
+        window.openChat = (rideId, title) => {
+            currentChatRideId = rideId;
+            document.getElementById('chat-title').innerText = title;
+            const modal = document.getElementById('chat-modal');
+            modal.style.display = 'flex';
+            setTimeout(() => modal.classList.add('active'), 10);
+            loadMessages();
+        }
+
+        window.closeChat = () => {
+            const modal = document.getElementById('chat-modal');
+            modal.classList.remove('active');
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 300);
+            if (chatListener) chatListener();
+            currentChatRideId = null;
+        }
+
+        function loadMessages() {
+            const chatContainer = document.getElementById('chat-messages');
+            chatContainer.innerHTML = '<div class="loader"></div>';
+
+            const q = query(
+                collection(db, `rides/${currentChatRideId}/messages`),
+                orderBy('timestamp', 'asc')
+            );
+
+            chatListener = onSnapshot(q, (snapshot) => {
+                chatContainer.innerHTML = '';
+                if (snapshot.empty) {
+                    chatContainer.innerHTML = '<div style="text-align:center; color:#666; margin-top:20px;">No messages yet. Say hi! 👋</div>';
+                }
+                
+                snapshot.forEach(doc => {
+                    const msg = doc.data();
+                    const isOwn = msg.senderId === currentUser.uid;
+                    const time = msg.timestamp ? new Date(msg.timestamp.seconds * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '...';
+                    
+                    const msgHTML = `
+                        <div class="message-row ${isOwn ? 'msg-own' : 'msg-other'}">
+                            ${!isOwn ? `<div class="msg-sender">${msg.senderName}</div>` : ''}
+                            <div class="msg-bubble">${msg.text}</div>
+                            <div class="msg-time">${time}</div>
+                        </div>
+                    `;
+                    chatContainer.insertAdjacentHTML('beforeend', msgHTML);
+                });
+                
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            });
+        }
+
+        window.sendMessage = async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            
+            if (!text || !currentChatRideId) return;
+
+            try {
+                input.value = '';
+                input.style.height = 'auto';
+                await addDoc(collection(db, `rides/${currentChatRideId}/messages`), {
+                    text: text,
+                    senderId: currentUser.uid,
+                    senderName: currentUser.displayName || "User",
+                    timestamp: serverTimestamp()
+                });
+            } catch (error) {
+                console.error("Error sending message:", error);
+            }
+        }
+
+        const chatInput = document.getElementById('chat-input');
+        chatInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+        });
+
+    </script>
+</body>
+</html>

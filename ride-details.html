@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ride Details | Waymate</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <style>
+        :root { 
+            --bg-dark: #0a0a0a; 
+            --text-main: #ffffff; 
+            --text-muted: #a1a1a1; 
+            --glass-border: rgba(255, 255, 255, 0.1); 
+            --nav-glass: rgba(10, 10, 10, 0.95); 
+            --accent-green: #4ade80; 
+            --accent-red: #f87171; 
+            --accent-yellow: #facc15;
+            --accent-orange: #fb923c;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { background: #0a0a0a; color: var(--text-main); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        
+        nav { position: fixed; top: 0; left: 0; width: 100%; height: 60px; z-index: 1000; background: var(--nav-glass); backdrop-filter: blur(10px); border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: center; }
+        .nav-container { width: 100%; max-width: 1400px; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 1.4rem; font-weight: 700; color: white; text-decoration: none; }
+        .back-link { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; }
+        
+        .layout-wrapper { display: flex; height: 100%; padding-top: 60px; width: 100%; }
+        #map-container { width: 55%; height: 100%; background-color: #1a1a1a; position: relative; }
+        #map { width: 100%; height: 100%; }
+        
+        /* Dragger Styles */
+        #details-container { width: 45%; height: 100%; background: #0a0a0a; border-left: 1px solid var(--glass-border); display: flex; flex-direction: column; position: relative; z-index: 10; transition: height 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); }
+        .drag-handle-area { display: none; width: 100%; min-height: 30px; align-items: center; justify-content: center; cursor: grab; background: #0a0a0a; border-top: 1px solid rgba(255,255,255,0.1); border-radius: 20px 20px 0 0; flex-shrink: 0; }
+        .drag-bar { width: 50px; height: 5px; background: rgba(255, 255, 255, 0.3); border-radius: 10px; }
+        
+        .content-scroll-wrapper { flex: 1; overflow-y: auto; padding: 30px; display: flex; flex-direction: column; }
+
+        /* UI Elements */
+        .header-section { margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px; }
+        .price-large { font-size: 2.5rem; font-weight: 700; color: var(--accent-green); }
+        .per-seat { font-size: 1rem; color: var(--text-muted); font-weight: 400; }
+        
+        /* Dynamic Match Badge */
+        .match-badge { 
+            padding: 5px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; 
+            display: inline-block; margin-bottom: 15px; border: 1px solid transparent;
+        }
+        .match-high { background: rgba(74, 222, 128, 0.1); color: var(--accent-green); border-color: rgba(74, 222, 128, 0.2); }
+        .match-med { background: rgba(250, 204, 21, 0.1); color: var(--accent-yellow); border-color: rgba(250, 204, 21, 0.2); }
+        .match-low { background: rgba(251, 146, 60, 0.1); color: var(--accent-orange); border-color: rgba(251, 146, 60, 0.2); }
+
+        .route-timeline { margin-bottom: 30px; position: relative; padding-left: 25px; border-left: 2px dashed var(--glass-border); }
+        .timeline-point { position: relative; margin-bottom: 30px; }
+        .timeline-point:last-child { margin-bottom: 0; }
+        .timeline-point::before { content: ''; position: absolute; left: -31px; top: 5px; width: 10px; height: 10px; border-radius: 50%; background: white; box-shadow: 0 0 10px rgba(255,255,255,0.5); }
+        
+        .gap-warning { font-size: 0.75rem; color: var(--accent-yellow); margin-top: 4px; display: flex; align-items: center; gap: 5px; }
+        
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; }
+        .info-card { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; }
+        .info-label { font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 5px; }
+        .info-val { font-size: 1.1rem; font-weight: 600; }
+
+        .driver-card { background: rgba(255,255,255,0.05); border-radius: 16px; padding: 20px; display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
+        .driver-img { width: 50px; height: 50px; border-radius: 50%; background: #333; object-fit: cover; }
+        .blur-text { color: transparent; text-shadow: 0 0 8px rgba(255,255,255,0.8); user-select: none; }
+
+        .btn-book { width: 100%; padding: 18px; border-radius: 12px; border: none; background: white; color: black; font-size: 1.1rem; font-weight: 700; cursor: pointer; transition: transform 0.2s; margin-top: auto; }
+        .btn-book:hover { transform: translateY(-2px); background: #e0e0e0; }
+
+        /* LEGEND: Bottom-left Desktop, Top-Right Mobile */
+        .map-legend { 
+            position: absolute; bottom: 30px; left: 20px; 
+            background: rgb(0 0 0 / 19%); backdrop-filter: blur(12px); 
+            padding: 12px 18px; border-radius: 12px; 
+            border: 1px solid rgba(255, 255, 255, 0.15); 
+            color: white; font-size: 0.85rem; z-index: 5; 
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+        .legend-item:last-child { margin-bottom: 0; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; }
+
+        /* --- JOIN MODAL STYLES --- */
+        #join-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); backdrop-filter: blur(8px);
+            z-index: 2000; display: none; align-items: center; justify-content: center;
+        }
+        .modal-content {
+            background: #1a1a1a; border: 1px solid var(--glass-border);
+            border-radius: 20px; width: 90%; max-width: 400px;
+            padding: 25px; position: relative; animation: popIn 0.3s forwards;
+        }
+        @keyframes popIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        
+        .modal-header { font-size: 1.2rem; font-weight: 700; margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px; }
+        .modal-row { display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 0.95rem; }
+        .modal-label { color: var(--text-muted); }
+        .driver-note { background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; font-size: 0.85rem; color: #ccc; margin-bottom: 20px; font-style: italic; }
+        
+        .seat-select {
+            width: 100%; padding: 12px; background: rgba(255,255,255,0.1); 
+            border: 1px solid var(--glass-border); border-radius: 8px; 
+            color: white; margin-bottom: 20px; font-size: 1rem;
+        }
+        .modal-actions { display: flex; gap: 10px; }
+        .btn-cancel { flex: 1; padding: 12px; border-radius: 10px; border: 1px solid var(--glass-border); background: transparent; color: white; cursor: pointer; }
+        .btn-confirm { flex: 1; padding: 12px; border-radius: 10px; border: none; background: var(--accent-green); color: black; font-weight: 700; cursor: pointer; }
+
+        @media (max-width: 768px) { 
+            .layout-wrapper { display: block; }
+            #map-container { width: 100%; height: 100%; position: fixed; top: 0; left: 0; z-index: 0; }
+            #details-container { width: 100%; position: fixed; bottom: 0; left: 0; border-left: none; border-radius: 20px 20px 0 0; box-shadow: 0 -5px 30px rgba(0,0,0,0.5); z-index: 100; }
+            .drag-handle-area { display: flex; }
+            .content-scroll-wrapper { padding: 10px 30px 40px 30px; }
+            #details-container.h-full { height: 85vh; }
+            #details-container.h-half { height: 50vh; }
+            #details-container.h-min { height: 180px; overflow: hidden; }
+            
+            /* Mobile Legend Position */
+            .map-legend { 
+                bottom: auto; left: auto; top: 80px; right: 20px; 
+                text-align: right; flex-direction: column; align-items: flex-end; 
+            }
+            .legend-item { flex-direction: row-reverse; }
+        }
+        .leaflet-container { background: #242f3e !important; }
+    </style>
+</head>
+<body>
+
+    <div id="join-modal">
+        <div class="modal-content">
+            <div class="modal-header">Confirm Booking</div>
+            
+            <div class="modal-row">
+                <span class="modal-label">Driver</span>
+                <span>Waymate User</span>
+            </div>
+            <div class="modal-row">
+                <span class="modal-label">Car</span>
+                <span id="m-car">--</span>
+            </div>
+            
+            <div class="driver-note">
+                " <span id="m-note">No specific instructions.</span> "
+            </div>
+
+            <div class="modal-row">
+                <span class="modal-label" style="align-self: center;">Seats Required</span>
+                <select id="m-seats" class="seat-select" style="width: 80px; margin-bottom: 0;">
+                    </select>
+            </div>
+
+            <div class="modal-row" style="font-size: 1.1rem; font-weight: 600; margin-top: 20px; border-top: 1px solid var(--glass-border); padding-top: 15px;">
+                <span>Total Amount</span>
+                <span>₹<span id="m-total">0</span></span>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeJoinModal()">Cancel</button>
+                <button class="btn-confirm" id="btn-confirm-join">Send Request</button>
+            </div>
+        </div>
+    </div>
+
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="logo">WAYMATE</a>
+            <a href="find-ride.html" class="back-link">← Back to Search</a>
+        </div>
+    </nav>
+
+    <div class="layout-wrapper">
+        <div id="map-container">
+            <div id="map"></div>
+            <div class="map-legend">
+                <div class="legend-item"><div class="dot" style="background:transparent; border:1px dashed white;"></div> Your Request</div>
+                <div class="legend-item"><div class="dot" style="background:#4ade80"></div> Shared Ride</div>
+                <div class="legend-item"><div class="dot" style="background:#f87171"></div> Gap</div>
+            </div>
+        </div>
+
+        <div id="details-container" class="h-half">
+            <div class="drag-handle-area" id="drag-handle"><div class="drag-bar"></div></div>
+            
+            <div id="loading" style="text-align:center; padding:50px;">
+                <div style="font-size:2rem; margin-bottom:10px;">⏳</div>
+                <div>Connecting to server...</div>
+            </div>
+
+            <div id="error-msg" style="display:none; text-align:center; padding:50px; color:#f87171;">
+                <div style="font-size:2rem; margin-bottom:10px;">⚠️</div>
+                <div id="error-text">Unknown error</div>
+                <a href="find-ride.html" style="color:white; margin-top:20px; display:inline-block;">Go Back</a>
+            </div>
+
+            <div id="content" class="content-scroll-wrapper" style="display:none;">
+                <div class="header-section">
+                    <span class="match-badge" id="d-match-score">Calculating...</span>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div><div class="price-large">₹<span id="d-price">--</span></div><span class="per-seat">per seat</span></div>
+                        <div style="text-align:right;"><div style="font-size:1.5rem; font-weight:600;" id="d-seats">--</div><div style="color:var(--text-muted); font-size:0.9rem;">seats left</div></div>
+                    </div>
+                </div>
+
+                <div class="route-timeline">
+                    <div class="timeline-point">
+                        <div style="font-weight:600; font-size:1.1rem;">Pickup Point</div>
+                        <div style="font-size:0.85rem; color:#888;">Your Pickup Location</div>
+                        <div class="gap-warning" id="pickup-gap-text">Calculating...</div>
+                    </div>
+                    <div class="timeline-point">
+                        <div style="font-weight:600; font-size:1.1rem;">Drop Point</div>
+                        <div style="font-size:0.85rem; color:#888;">Your Drop Location</div>
+                        <div class="gap-warning" id="drop-gap-text">Calculating...</div>
+                    </div>
+                </div>
+
+                <div class="info-grid">
+                    <div class="info-card">
+                        <span class="info-label">Date</span>
+                        <div class="info-val" id="d-date">--</div>
+                    </div>
+                    <div class="info-card">
+                        <span class="info-label">Total Duration</span>
+                        <div class="info-val" id="d-duration">Calculating...</div>
+                    </div>
+                </div>
+
+                <div class="driver-card">
+                    <img src="" id="d-photo" class="driver-img">
+                    <div style="flex:1;">
+                        <div style="font-weight:600; font-size:1rem; margin-bottom:2px;">Waymate User</div>
+                        <div style="font-size:0.8rem; color:#aaa;" id="d-car-model">Car Model</div>
+                    </div>
+                </div>
+
+                <button class="btn-book" onclick="openJoinModal()">Join This Ride</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="./ride-details-map.js"></script>
+</body>
+</html>

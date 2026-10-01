@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ongoing Ride | Waymate</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <style>
+        /* --- CSS Variables --- */
+        :root {
+            --bg-dark: #0a0a0a;
+            --text-main: #ffffff;
+            --text-muted: #a1a1a1;
+            --glass-bg: rgba(20, 20, 20, 0.95);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --nav-glass: rgba(10, 10, 10, 0.95);
+            --accent-green: #4ade80;
+            --accent-red: #f87171;
+            --accent-blue: #60a5fa;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+
+        body {
+            background: #0a0a0a;
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            visibility: hidden; 
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        body.loaded { visibility: visible; opacity: 1; }
+
+        /* --- Navbar --- */
+        nav {
+            position: fixed; top: 0; left: 0; width: 100%; height: 60px; z-index: 1000;
+            background: var(--nav-glass); backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--glass-border);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .nav-container { width: 100%; max-width: 1400px; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 1.4rem; font-weight: 700; color: white; text-decoration: none; }
+        .live-badge { 
+            background: rgba(248, 113, 113, 0.2); color: var(--accent-red); 
+            padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; 
+            font-weight: 600; display: flex; align-items: center; gap: 6px; 
+            border: 1px solid rgba(248, 113, 113, 0.3);
+        }
+        .pulse { width: 8px; height: 8px; background: var(--accent-red); border-radius: 50%; animation: pulse 1.5s infinite; }
+        
+        @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } 100% { opacity: 1; transform: scale(1); } }
+
+        /* --- Layout --- */
+        .layout-wrapper { display: flex; flex-direction: row; height: 100%; padding-top: 60px; width: 100%; position: relative; }
+        #map-container { width: 55%; height: 100%; position: relative; z-index: 1; background-color: #1a1a1a; }
+        #map { width: 100%; height: 100%; }
+
+        /* --- LEGEND --- */
+        .map-legend { 
+            position: absolute; bottom: 30px; left: 20px; 
+            background: rgba(0,0,0,0.8); backdrop-filter: blur(5px);
+            padding: 10px 15px; border-radius: 10px; 
+            border: 1px solid var(--glass-border); z-index: 5;
+            font-size: 0.8rem; color: white;
+        }
+        .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+        .legend-item:last-child { margin-bottom: 0; }
+        .leg-line { width: 20px; height: 4px; border-radius: 2px; }
+
+        /* --- UNIFIED DRAGGABLE PANEL --- */
+        #status-panel {
+            width: 45%; height: 100%; background: #0a0a0a;
+            border-left: 1px solid var(--glass-border);
+            display: flex; flex-direction: column; position: relative;
+            z-index: 10; transition: height 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        .drag-handle-area {
+            display: none; width: 100%; min-height: 30px;
+            align-items: center; justify-content: center; cursor: grab;
+            background: #0a0a0a; border-top: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px 20px 0 0; flex-shrink: 0;
+        }
+        .drag-bar { width: 50px; height: 5px; background: rgba(255, 255, 255, 0.3); border-radius: 10px; }
+
+        .content-scroll-wrapper { flex: 1; overflow-y: auto; padding: 25px; display: flex; flex-direction: column; }
+
+        .status-header { margin-bottom: 30px; text-align: center; }
+        .status-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 5px; }
+        .status-sub { color: var(--text-muted); font-size: 0.9rem; }
+
+        .info-card {
+            background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);
+            border-radius: 16px; padding: 20px; margin-bottom: 20px;
+        }
+
+        .info-row { display: flex; justify-content: space-between; margin-bottom: 12px; }
+        .info-row:last-child { margin-bottom: 0; }
+        .info-label { color: var(--text-muted); font-size: 0.85rem; }
+        .info-val { font-weight: 600; font-size: 1rem; }
+
+        /* --- OTP POPUP --- */
+        .otp-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(5px);
+            z-index: 2000; display: none; align-items: center; justify-content: center;
+        }
+        .otp-overlay.active { display: flex; }
+
+        .otp-popup {
+            background: #141414; border: 1px solid var(--glass-border);
+            border-radius: 24px; padding: 40px 35px; max-width: 400px; width: 90%;
+            text-align: center; animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .otp-popup h3 {
+            font-size: 1.5rem; font-weight: 700; margin-bottom: 10px;
+        }
+
+        .otp-popup p {
+            color: var(--text-muted); font-size: 0.9rem; margin-bottom: 30px;
+        }
+
+        .otp-input-group {
+            display: flex; gap: 10px; justify-content: center; margin-bottom: 25px;
+        }
+
+        .otp-input {
+            width: 50px; height: 60px; font-size: 1.8rem; text-align: center;
+            background: rgba(255, 255, 255, 0.05); border: 2px solid var(--glass-border);
+            border-radius: 12px; color: white; font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .otp-input:focus {
+            outline: none; border-color: var(--accent-green);
+            background: rgba(74, 222, 128, 0.1);
+        }
+
+        .otp-buttons {
+            display: flex; gap: 10px; margin-top: 20px;
+        }
+
+        .btn-otp {
+            flex: 1; padding: 14px; border-radius: 12px; border: none;
+            font-size: 1rem; font-weight: 600; cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .btn-otp:hover { transform: translateY(-2px); }
+
+        .btn-verify {
+            background: var(--accent-green); color: black;
+        }
+
+        .btn-cancel {
+            background: rgba(255, 255, 255, 0.1); color: white;
+        }
+
+        .otp-error {
+            color: var(--accent-red); font-size: 0.85rem;
+            margin-top: 10px; display: none;
+        }
+
+        /* Passenger OTP Display */
+        .passenger-otp-card {
+            background: linear-gradient(135deg, rgba(74, 222, 128, 0.1), rgba(96, 165, 250, 0.1));
+            border: 2px solid var(--accent-green); border-radius: 16px;
+            padding: 25px; text-align: center; margin-bottom: 20px;
+            display: none;
+        }
+
+        .passenger-otp-card h4 {
+            font-size: 0.9rem; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;
+        }
+
+        .passenger-otp-display {
+            font-size: 3rem; font-weight: 700; letter-spacing: 8px;
+            color: var(--accent-green); margin: 15px 0;
+            font-family: 'Courier New', monospace;
+        }
+
+        .passenger-otp-card p {
+            color: var(--text-muted); font-size: 0.85rem; margin-top: 10px;
+        }
+
+        /* Driver Controls */
+        .driver-controls { margin-top: auto; padding-top: 20px; border-top: 1px solid var(--glass-border); display: none; }
+        
+        .btn-start {
+            width: 100%; padding: 18px; border-radius: 12px; border: none;
+            background: var(--accent-green); color: black; font-size: 1.1rem; 
+            font-weight: 700; cursor: pointer; transition: transform 0.2s;
+        }
+        .btn-start:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(74, 222, 128, 0.3); }
+
+        .btn-complete {
+            width: 100%; padding: 18px; border-radius: 12px; border: none;
+            background: var(--accent-red); color: white; font-size: 1.1rem; 
+            font-weight: 700; cursor: pointer; transition: transform 0.2s;
+            display: none; 
+        }
+        .btn-complete:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(248, 113, 113, 0.3); }
+
+        .passenger-msg {
+            text-align: center; color: var(--accent-blue); font-weight: 500;
+            padding: 15px; background: rgba(96, 165, 250, 0.1); 
+            border-radius: 12px; display: none; margin-top: auto;
+        }
+
+        /* --- MOBILE RESPONSIVE --- */
+        @media (max-width: 768px) {
+            .layout-wrapper { display: block; }
+            #map-container { width: 100%; height: 100%; position: fixed; top: 0; left: 0; z-index: 0; }
+            
+            #status-panel {
+                width: 100%; position: fixed; bottom: 0; left: 0;
+                border-left: none; border-radius: 20px 20px 0 0;
+                box-shadow: 0 -5px 30px rgba(0,0,0,0.5); z-index: 100;
+            }
+            .drag-handle-area { display: flex; }
+            .content-scroll-wrapper { padding: 10px 25px 40px 25px; }
+            
+            #status-panel.h-full { height: 80vh; }
+            #status-panel.h-half { height: 50vh; }
+            #status-panel.h-min { height: 180px; overflow: hidden; } 
+
+            .map-legend { top: 80px; left: auto; bottom: auto; right: 20px; }
+
+            .otp-input { width: 45px; height: 55px; font-size: 1.5rem; }
+            .passenger-otp-display { font-size: 2.5rem; letter-spacing: 6px; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="logo">WAYMATE</a>
+            <div class="live-badge"><div class="pulse"></div> LIVE RIDE</div>
+        </div>
+    </nav>
+
+    <div class="layout-wrapper">
+        <div id="map-container">
+            <div id="map"></div>
+            <div class="map-legend">
+                <div class="legend-item"><div class="leg-line" style="background:#f87171;"></div> Driver to Pickup</div>
+                <div class="legend-item"><div class="leg-line" style="background:#60a5fa;"></div> Pickup to Drop</div>
+            </div>
+        </div>
+
+        <div id="status-panel" class="h-half">
+            <div class="drag-handle-area" id="drag-handle">
+                <div class="drag-bar"></div>
+            </div>
+
+            <div class="content-scroll-wrapper">
+                <div class="status-header">
+                    <div class="status-title" id="status-text">Connecting...</div>
+                    <div class="status-sub" id="sub-text">Please wait</div>
+                </div>
+
+                <!-- Passenger OTP Card -->
+                <div id="passenger-otp-card" class="passenger-otp-card">
+                    <h4>Your Ride OTP</h4>
+                    <div class="passenger-otp-display" id="passenger-otp-display">----</div>
+                    <p>Share this code with your driver to start the ride</p>
+                </div>
+
+                <div class="info-card">
+                    <div class="info-row">
+                        <span class="info-label">Destination</span>
+                        <span class="info-val" id="disp-dest">--</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Driver</span>
+                        <span class="info-val" id="disp-driver">--</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Car</span>
+                        <span class="info-val" id="disp-car">--</span>
+                    </div>
+                </div>
+
+                <div id="driver-controls" class="driver-controls">
+                    <button id="btn-start" class="btn-start" onclick="showOTPPopup()">
+                        🚀 Start Ride
+                    </button>
+                    <button id="btn-complete" class="btn-complete" onclick="completeRide()">
+                        🏁 Complete Ride
+                    </button>
+                </div>
+
+                <div id="passenger-msg" class="passenger-msg">
+                    Tracking driver location...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- OTP Popup -->
+    <div id="otp-overlay" class="otp-overlay">
+        <div class="otp-popup">
+            <h3>Enter Passenger OTP</h3>
+            <p>Ask the passenger for their 4-digit verification code</p>
+            
+            <div class="otp-input-group">
+                <input type="text" maxlength="1" class="otp-input" id="otp1" oninput="moveToNext(this, 'otp2')" onkeydown="moveToPrev(event, this, null)">
+                <input type="text" maxlength="1" class="otp-input" id="otp2" oninput="moveToNext(this, 'otp3')" onkeydown="moveToPrev(event, this, 'otp1')">
+                <input type="text" maxlength="1" class="otp-input" id="otp3" oninput="moveToNext(this, 'otp4')" onkeydown="moveToPrev(event, this, 'otp2')">
+                <input type="text" maxlength="1" class="otp-input" id="otp4" oninput="verifyOTPAuto()" onkeydown="moveToPrev(event, this, 'otp3')">
+            </div>
+
+            <div class="otp-error" id="otp-error">Invalid OTP. Please try again.</div>
+
+            <div class="otp-buttons">
+                <button class="btn-otp btn-cancel" onclick="closeOTPPopup()">Cancel</button>
+                <button class="btn-otp btn-verify" onclick="verifyOTP()">Verify & Start</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="./ongoing-ride-map.js"></script>
+</body>
+</html>

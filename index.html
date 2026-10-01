@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Waymate | Connect. Ride. Save.</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* --- CSS Variables --- */
+        :root {
+            --primary-color: #ffffff;
+            --bg-dark: #0a0a0a;
+            --text-main: #ffffff;
+            --text-muted: #a1a1a1;
+            --text-dark: #000000;
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-blur: blur(16px);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            background: linear-gradient(135deg, #050505 0%, #141414 100%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        body.loaded { visibility: visible; opacity: 1; }
+
+        /* --- LOADING SPINNER --- */
+        #loader-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #050505; z-index: 9999;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .spinner {
+            width: 40px; height: 40px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 0.8s ease-in-out infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* --- UTILS --- */
+        .container { width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+        
+        /* --- BUTTONS --- */
+        button, .btn { padding: 16px 40px; border: none; border-radius: 50px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; font-size: 1.1rem; white-space: nowrap; display: inline-flex; justify-content: center; align-items: center; outline: none; }
+        
+        .btn-primary { background: var(--primary-color); color: var(--text-dark); box-shadow: 0 4px 20px rgba(255, 255, 255, 0.15); }
+        .btn-primary:hover { background: #e0e0e0; transform: translateY(-4px); box-shadow: 0 15px 30px rgba(255, 255, 255, 0.25); }
+        
+        .btn-outline { background: transparent; border: 2px solid rgba(255, 255, 255, 0.3); color: white; }
+        .btn-outline:hover { border-color: white; background: rgba(255, 255, 255, 0.1); transform: translateY(-4px); }
+
+        .btn-ongoing { 
+            background: rgba(46, 204, 113, 0.15); 
+            border: 1px solid rgba(46, 204, 113, 0.4); 
+            color: #2ecc71; 
+            backdrop-filter: blur(10px); 
+            width: 100%;
+            max-width: 300px;
+        }
+        .btn-ongoing:hover { 
+            background: rgba(46, 204, 113, 0.25); 
+            transform: translateY(-4px); 
+            box-shadow: 0 0 20px rgba(46, 204, 113, 0.2);
+            color: #fff;
+        }
+
+        /* --- NAV --- */
+        nav { position: fixed; top: 0; left: 0; width: 100%; height: 90px; z-index: 1000; background: rgb(10 10 10 / 24%); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; }
+        .nav-container { width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 1.8rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; text-decoration: none; }
+        .logo-icon { margin-right: 10px; color: var(--text-main); font-size: 1.8rem; }
+        .logo span { color: var(--text-muted); font-weight: 300; }
+        .nav-links { display: flex; list-style: none; gap: 40px; margin: 0; padding: 0; }
+        .nav-links a { text-decoration: none; color: var(--text-muted); font-weight: 500; transition: color 0.3s; font-size: 1rem; }
+        .nav-links a:hover { color: var(--text-main); }
+
+        .user-profile-container { display: flex; align-items: center; gap: 12px; cursor: pointer; position: relative; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 50px; padding: 5px 5px 5px 20px; transition: all 0.3s ease; }
+        .user-profile-container:hover { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.3); transform: translateY(-1px); }
+        .user-name { font-size: 0.95rem; font-weight: 500; color: var(--text-main); white-space: nowrap; }
+        .user-avatar { width: 40px; height: 40px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.1); object-fit: cover; }
+        
+        .profile-dropdown { position: absolute; top: 60px; right: 0; background: #141414; border: 1px solid var(--glass-border); border-radius: 16px; width: 180px; display: none; flex-direction: column; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.5); padding: 5px; }
+        .profile-dropdown.active { display: flex; }
+        .dropdown-item { padding: 12px 15px; color: var(--text-muted); background: transparent; border: none; text-decoration: none; font-size: 0.9rem; transition: 0.2s; text-align: left; border-radius: 8px; margin-bottom: 2px; cursor: pointer; }
+        .dropdown-item:hover { background: rgba(255,255,255,0.1); color: white; }
+        .dropdown-item.logout { color: #ff6b6b; }
+        
+        .menu-toggle { display: none; cursor: pointer; color: white; font-size: 1.5rem; }
+
+        /* --- HERO SECTION --- */
+        .hero { 
+            padding-top: 100px; 
+            padding-bottom: 40px;
+            min-height: 100vh; 
+            min-height: 100dvh; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            text-align: center; 
+        }
+        .hero h1 { font-size: 5.5rem; font-weight: 700; line-height: 1.05; margin-bottom: 25px; color: var(--text-main); max-width: 900px; margin-left: auto; margin-right: auto; }
+        .highlight { background: -webkit-linear-gradient(0deg, #ffffff, #666666); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .hero p { font-size: 1.4rem; margin-bottom: 50px; color: var(--text-muted); max-width: 650px; line-height: 1.6; font-weight: 300; margin-left: auto; margin-right: auto; }
+        
+        /* DESKTOP: Row layout */
+        .hero-actions { 
+            display: flex; 
+            flex-direction: row; 
+            gap: 25px; 
+            justify-content: center; 
+            align-items: center; 
+            width: 100%; 
+            margin: 0 auto; 
+            min-height: 60px;
+        }
+
+        .features-section { width: 100%; padding: 80px 0; background: rgba(255, 255, 255, 0.01); border-top: 1px solid var(--glass-border); }
+        .section-header { text-align: center; margin-bottom: 60px; }
+        .section-label { display: inline-block; font-size: 0.85rem; color: var(--text-muted); border: 1px solid var(--glass-border); padding: 8px 16px; border-radius: 30px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 15px; }
+        .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; margin-top: 40px; }
+        .feature-card { background: var(--glass-bg); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border: 1px solid var(--glass-border); padding: 40px 30px; border-radius: 20px; transition: transform 0.3s ease; }
+        .feature-card:hover { transform: translateY(-10px); background: rgba(255, 255, 255, 0.05); }
+        .feature-icon { font-size: 2.5rem; margin-bottom: 20px; display: inline-block; }
+        .feature-card h3 { font-size: 1.5rem; font-weight: 600; margin-bottom: 15px; color: var(--text-main); }
+        .feature-card p { font-size: 1rem; color: var(--text-muted); line-height: 1.6; font-weight: 300; }
+        .how-it-works { width: 100%; padding: 100px 0; }
+        .steps-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 25px; margin-top: 60px; }
+        .step-card { background: var(--glass-bg); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border: 1px solid var(--glass-border); border-radius: 20px; padding: 30px; text-align: center; height: 100%; }
+        .step-circle { width: 50px; height: 50px; background: rgba(255, 255, 255, 0.1); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 700; font-size: 1.2rem; margin: 0 auto 20px auto; color: var(--text-main); }
+        .step-card h3 { font-size: 1.2rem; margin-bottom: 10px; font-weight: 600; }
+        .step-card p { font-size: 0.95rem; color: var(--text-muted); line-height: 1.6; }
+        footer { background: rgba(0, 0, 0, 0.4); border-top: 1px solid var(--glass-border); padding: 80px 0 30px 0; margin-top: auto; backdrop-filter: blur(10px); }
+        .footer-grid { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 40px; margin-bottom: 50px; }
+        .footer-col h4 { color: var(--text-main); font-size: 1.1rem; margin-bottom: 25px; font-weight: 600; }
+        .footer-col ul { list-style: none; }
+        .footer-col ul li { margin-bottom: 12px; }
+        .footer-col ul li a { color: var(--text-muted); text-decoration: none; font-size: 0.95rem; transition: color 0.3s; }
+        .footer-bottom { border-top: 1px solid var(--glass-border); padding-top: 30px; text-align: center; color: rgba(255, 255, 255, 0.4); font-size: 0.9rem; }
+        .social-icons { display: flex; gap: 15px; margin-top: 25px; }
+        .social-icon { width: 35px; height: 35px; border-radius: 50%; background: rgba(255, 255, 255, 0.1); display: flex; align-items: center; justify-content: center; color: white; text-decoration: none; }
+
+        @media (max-width: 1024px) { .hero h1 { font-size: 4rem; } .features-grid { grid-template-columns: repeat(2, 1fr); } .steps-container { grid-template-columns: repeat(2, 1fr); } .footer-grid { grid-template-columns: 1fr 1fr; } }
+        
+        /* --- MOBILE RESPONSIVENESS --- */
+        @media (max-width: 768px) { 
+            .nav-container { display: flex; justify-content: space-between; } 
+            .nav-links { display: none; } 
+            .user-name { display: none; } 
+            .user-profile-container { padding: 0; border: none; background: transparent; } 
+            .menu-toggle { display: block; } 
+            
+            .hero { 
+                padding-top: 120px; 
+                height: 100dvh; 
+                min-height: 100dvh;
+                justify-content: flex-start;
+            } 
+            .hero h1 { font-size: 3rem; margin-top: 20px; } 
+            
+            /* FIXED: Force Vertical Stack on Mobile */
+            .hero-actions { 
+                flex-direction: column !important; 
+                width: 100%; 
+                gap: 15px; 
+                padding: 0 20px 20px 20px; 
+                margin-top: auto; 
+            } 
+            .btn { width: 100%; } 
+            
+            .features-grid { grid-template-columns: 1fr; } 
+            .steps-container { grid-template-columns: 1fr; } 
+            .footer-grid { grid-template-columns: 1fr; gap: 40px; text-align: center; } 
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="loader-overlay">
+        <div class="spinner"></div>
+    </div>
+
+    <nav>
+        <div class="nav-container">
+            <a href="#" class="logo">
+                <span class="logo-icon">❖</span>
+                WAY<span>MATE</span>
+            </a>
+            <ul class="nav-links">
+                <li><a href="find-ride.html">Find a Ride</a></li>
+                <li><a href="offer-ride.html">Offer a Ride</a></li>
+                <li><a href="about-us.html">About</a></li>
+            </ul>
+
+            <div class="user-profile-container" onclick="toggleDropdown()">
+                <span class="user-name" id="nav-user-name">Loading...</span>
+                <img src="https://ui-avatars.com/api/?name=User&background=333&color=fff" alt="Profile" class="user-avatar" id="nav-user-img">
+                <div class="profile-dropdown" id="profileDropdown">
+                    <button onclick="window.location.href='profile.html'" class="dropdown-item">My Profile</button>
+                    <button onclick="window.location.href='my-rides.html'" class="dropdown-item">My Rides</button>
+                    <button onclick="logoutUser()" class="dropdown-item logout">Log Out</button>
+                </div>
+            </div>
+
+            <div class="menu-toggle">☰</div>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <div class="container" style="height: 100%; display: flex; flex-direction: column;">
+            
+            <div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center;">
+                <h1>Redefine the way<br>you <span class="highlight">Move</span>.</h1>
+                <p>Experience the most efficient carpooling platform. Connect with verified drivers, save on travel costs, and enjoy a premium journey.</p>
+            </div>
+
+            <div class="hero-actions" id="action-buttons-container">
+                </div>
+            
+        </div>
+    </section>
+
+    <section class="features-section"><div class="container"><div class="section-header"><span class="section-label">Why Waymate?</span></div><div class="features-grid"><div class="feature-card"><span class="feature-icon">🛡️</span><h3>Verified Profiles</h3><p>Every user undergoes comprehensive verification including ID checks.</p></div><div class="feature-card"><span class="feature-icon">💰</span><h3>Smart Pricing</h3><p>Save up to 70% on travel costs with our transparent pricing.</p></div><div class="feature-card"><span class="feature-icon">📍</span><h3>Live Tracking</h3><p>Real-time GPS tracking keeps you informed every step.</p></div></div></div></section>
+    <section class="how-it-works"><div class="container"><div class="section-header"><span class="section-label">Simple Process</span><h2 style="font-size: 2.5rem; margin-top: 15px; font-weight: 700;">Start your journey</h2></div><div class="steps-container"><div class="step-card"><div class="step-circle">1</div><h3>Sign Up</h3><p>Create your account in seconds.</p></div><div class="step-card"><div class="step-circle">2</div><h3>Search</h3><p>Enter your destination.</p></div><div class="step-card"><div class="step-circle">3</div><h3>Book</h3><p>Select your ride instantly.</p></div><div class="step-card"><div class="step-circle">4</div><h3>Travel</h3><p>Enjoy a premium journey.</p></div></div></div></section>
+    <footer><div class="container"><div class="footer-grid"><div class="footer-col"><a href="#" class="logo" style="font-size: 1.5rem;"><span class="logo-icon" style="font-size: 1.5rem;">❖</span>WAY<span>MATE</span></a><p class="footer-desc">Revolutionizing urban mobility.</p><div class="social-icons"><a href="#" class="social-icon">𝕏</a><a href="#" class="social-icon">In</a><a href="#" class="social-icon">Ig</a></div></div><div class="footer-col"><h4>Company</h4><ul><li><a href="about-us.html">About Us</a></li><li><a href="#">Careers</a></li></ul></div><div class="footer-col"><h4>Product</h4><ul><li><a href="#">Find a Ride</a></li><li><a href="#">Offer a Ride</a></li></ul></div><div class="footer-col"><h4>Support</h4><ul><li><a href="support.html">Help Center</a></li><li><a href="contact-us.html">Contact Us</a></li></ul></div></div><div class="footer-bottom"><p>&copy; 2023 Waymate Inc.</p></div></div></footer>
+
+    <script type="module">
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        // IMPORTED: doc and getDoc needed for passenger check
+        import { getFirestore, collection, query, where, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { app } from "./firebase-config.js"; 
+
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const loader = document.getElementById('loader-overlay');
+        const actionContainer = document.getElementById('action-buttons-container');
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                console.log("Session Restored:", user.displayName);
+                document.getElementById('nav-user-name').textContent = user.displayName;
+                if(user.photoURL) document.getElementById('nav-user-img').src = user.photoURL;
+
+                const hasOngoingRide = await checkIfUserHasRide(user.uid);
+                updateHeroButtons(hasOngoingRide);
+
+                loader.style.display = 'none';
+                document.body.classList.add('loaded');
+            } else {
+                window.location.href = "login.html";
+            }
+        });
+
+        async function checkIfUserHasRide(userId) {
+            try {
+                // 1. CHECK DRIVER STATUS
+                const driverQuery = query(
+                    collection(db, "rides"),
+                    where("driver_id", "==", userId),
+                    where("status", "==", "scheduled")
+                );
+                
+                const driverSnapshot = await getDocs(driverQuery);
+                if (!driverSnapshot.empty) {
+                    console.log("User is a Driver.");
+                    return true;
+                }
+
+                // 2. CHECK PASSENGER STATUS (WITH PARENT RIDE CHECK)
+                const passengerQuery = query(
+                    collection(db, "bookings"),
+                    where("passenger_id", "==", userId),
+                    where("status", "in", ["pending", "accepted"]) // Check both pending and accepted
+                );
+                
+                const passengerSnapshot = await getDocs(passengerQuery);
+                
+                if (!passengerSnapshot.empty) {
+                    // Loop through bookings to verify the Ride still exists
+                    for (const bookingDoc of passengerSnapshot.docs) {
+                        const bookingData = bookingDoc.data();
+                        
+                        // Assumes your booking doc has a field 'ride_id'
+                        if (bookingData.ride_id) {
+                            const rideRef = doc(db, "rides", bookingData.ride_id);
+                            const rideSnap = await getDoc(rideRef);
+
+                            // IF RIDE EXISTS AND IS SCHEDULED -> RETURN TRUE
+                            if (rideSnap.exists() && rideSnap.data().status === 'scheduled') {
+                                console.log("User is a Passenger in an active ride.");
+                                return true;
+                            }
+                        }
+                    }
+                    // If loop finishes and no valid ride found -> Return false (Booking is orphaned)
+                    console.log("Orphaned booking found, ignoring.");
+                }
+
+                return false;
+
+            } catch (error) {
+                console.error("Error checking ride status:", error);
+                return false;
+            }
+        }
+
+        function updateHeroButtons(isOngoing) {
+            if (isOngoing) {
+                actionContainer.innerHTML = `
+                    <button class="btn btn-ongoing" onclick="window.location.href='my-rides.html'">
+                        🟢 Ongoing Ride
+                    </button>
+                `;
+            } else {
+                actionContainer.innerHTML = `
+                    <button class="btn btn-primary" onclick="window.location.href='find-ride.html'">Find a Ride</button>
+                    <button class="btn btn-outline" onclick="window.location.href='offer-ride.html'">Offer a Ride</button>
+                `;
+            }
+        }
+
+        window.logoutUser = () => {
+            signOut(auth).then(() => window.location.href = "login.html");
+        };
+
+        window.toggleDropdown = () => {
+            document.getElementById('profileDropdown').classList.toggle('active');
+        }
+
+        window.onclick = function(event) {
+            if (!event.target.closest('.user-profile-container')) {
+                const dropdown = document.getElementById('profileDropdown');
+                if (dropdown && dropdown.classList.contains('active')) {
+                    dropdown.classList.remove('active');
+                }
+            }
+        }
+    </script>
+
+</body>
+</html>
+

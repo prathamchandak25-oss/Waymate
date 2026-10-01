@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Offer a Ride | Waymate</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <style>
+        /* --- CSS Variables --- */
+        :root {
+            --primary-color: #ffffff; 
+            --bg-dark: #0a0a0a;
+            --text-main: #ffffff;
+            --text-muted: #a1a1a1; 
+            --glass-bg: rgba(20, 20, 20, 0.95);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --nav-glass: rgba(10, 10, 10, 0.95);
+            --accent-green: #4ade80;
+            --accent-red: #ff6b6b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+
+        body {
+            background: #0a0a0a;
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            visibility: hidden; 
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        body.loaded { visibility: visible; opacity: 1; }
+
+        /* --- Navbar --- */
+        nav {
+            position: fixed; top: 0; left: 0; width: 100%; height: 60px; z-index: 1000;
+            background: var(--nav-glass); backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--glass-border);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .nav-container { width: 100%; max-width: 1400px; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 1.4rem; font-weight: 700; color: white; text-decoration: none; display: flex; align-items: center; }
+        .menu-toggle { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
+
+        /* --- CUSTOM MODALS (Shared Styles) --- */
+        #custom-modal, #success-modal, #limit-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); /* Dark overlay */
+            backdrop-filter: blur(8px);
+            z-index: 9999; /* Highest priority */
+            display: none; /* Hidden by default */
+            align-items: center; justify-content: center;
+        }
+
+        .modal-content {
+            background: #1a1a1a;
+            border: 1px solid var(--glass-border);
+            padding: 40px 30px; border-radius: 20px;
+            text-align: center; max-width: 90%; width: 400px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.7);
+            transform: scale(0.9); animation: popIn 0.3s forwards;
+        }
+
+        @keyframes popIn { to { transform: scale(1); } }
+
+        .modal-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .modal-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 10px; color: white; }
+        .modal-text { color: var(--text-muted); font-size: 1rem; margin-bottom: 30px; line-height: 1.5; }
+        
+        .modal-btn {
+            background: white; color: black; border: none;
+            padding: 14px 30px; border-radius: 50px;
+            font-weight: 600; cursor: pointer; transition: 0.2s;
+            width: 100%; font-size: 1rem;
+        }
+        .modal-btn:hover { background: #e0e0e0; transform: translateY(-2px); }
+
+        /* --- Layout Container --- */
+        .layout-wrapper {
+            display: flex;
+            flex-direction: row; 
+            height: 100%;
+            padding-top: 60px; 
+            width: 100%;
+            position: relative;
+        }
+
+        /* --- Map Section --- */
+        #map-container { width: 55%; height: 100%; position: relative; z-index: 1; }
+        #map { width: 100%; height: 100%; }
+
+        .map-stats {
+            position: absolute; top: 20px; right: 20px;
+            background: rgb(0 0 0 / 19%); backdrop-filter: blur(12px);
+            padding: 12px 18px; border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.15);
+            color: white; font-size: 0.9rem; display: none; z-index: 5;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3); text-align: right;
+        }
+        .map-stats div:first-child { font-weight: 700; font-size: 1.2rem; color: #fff; margin-bottom: 2px; }
+
+        /* --- Form Panel --- */
+        #form-container {
+            width: 45%; height: 100%; background: #0a0a0a;
+            border-left: 1px solid var(--glass-border);
+            display: flex; flex-direction: column; position: relative;
+            z-index: 10; transition: height 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); 
+        }
+
+        .drag-handle-area {
+            display: none; width: 100%; min-height: 30px;
+            align-items: center; justify-content: center; cursor: grab;
+            background: #0a0a0a; border-top: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px 20px 0 0; flex-shrink: 0;
+        }
+        .drag-bar { width: 50px; height: 5px; background: rgba(255, 255, 255, 0.3); border-radius: 10px; }
+
+        .content-scroll-wrapper { flex: 1; overflow-y: auto; padding: 20px 30px 80px 30px; display: flex; flex-direction: column; }
+        h1 { font-size: 1.8rem; margin-bottom: 25px; font-weight: 700; }
+        .input-group { position: relative; margin-bottom: 20px; }
+        
+        .icon-dot { position: absolute; left: 12px; top: 18px; width: 10px; height: 10px; border-radius: 50%; background: white; z-index: 2; box-shadow: 0 0 10px rgba(255,255,255,0.5); }
+        .icon-square { position: absolute; left: 12px; top: 18px; width: 10px; height: 10px; background: var(--text-muted); z-index: 2; }
+
+        .form-input {
+            width: 100%; padding: 14px 40px 14px 35px; background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border); border-radius: 12px;
+            color: white; font-size: 0.95rem; outline: none; transition: 0.3s;
+        }
+        .form-input:focus { background: rgba(255, 255, 255, 0.1); border-color: white; }
+        .no-icon-input { padding-left: 14px; padding-right: 14px; }
+        .floating-label { position: absolute; top: -22px; left: 5px; font-size: 0.75rem; color: var(--text-muted); font-weight: 500; }
+
+        .location-btn {
+            position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+            background: none; border: none; color: var(--text-muted); 
+            cursor: pointer; padding: 5px; z-index: 3;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .location-btn:hover { color: #4ade80; }
+
+        .waypoint-container { margin-bottom: 15px; position: relative; animation: fadeIn 0.3s ease; }
+        .remove-wp-btn { position: absolute; right: 10px; top: 12px; background: none; border: none; color: #ff4d4d; font-size: 1.2rem; cursor: pointer; z-index: 5; }
+
+        .add-stop-btn {
+            background: none; border: 1px dashed rgba(255,255,255,0.3); color: var(--text-muted);
+            padding: 8px 15px; border-radius: 20px; font-size: 0.85rem; cursor: pointer;
+            margin-bottom: 30px; display: inline-flex; align-items: center; gap: 5px; transition: 0.3s;
+        }
+        .add-stop-btn:hover { border-color: white; color: white; }
+
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; }
+        .btn-submit { width: 100%; padding: 16px; margin-top: 10px; font-size: 1.1rem; border-radius: 12px; background: white; color: black; border: none; font-weight: 600; cursor: pointer; transition: transform 0.2s; }
+        .btn-submit:hover { transform: translateY(-2px); background: #e0e0e0; }
+        .btn-submit:disabled { opacity: 0.5; cursor: wait; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- Autocomplete Dropdown --- */
+        .autocomplete-dropdown {
+            position: absolute; top: 100%; left: 0; right: 0;
+            background: #1a1a1a; border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 0 0 12px 12px; max-height: 200px;
+            overflow-y: auto; z-index: 1000;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: none;
+        }
+        .autocomplete-item {
+            padding: 10px 14px; color: #ccc; font-size: 0.85rem;
+            cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;
+        }
+        .autocomplete-item:hover { background: rgba(255,255,255,0.1); color: white; }
+        .autocomplete-item:last-child { border-bottom: none; }
+        .leaflet-container { background: #242f3e !important; }
+
+        @media (max-width: 768px) {
+            .layout-wrapper { display: block; } 
+            #map-container { width: 100%; height: 100%; position: fixed; top: 0; left: 0; z-index: 0; }
+            .map-stats { top: 80px; right: 15px; }
+            #form-container { width: 100%; position: fixed; bottom: 0; left: 0; border-left: none; border-radius: 20px 20px 0 0; box-shadow: 0 -5px 30px rgba(0,0,0,0.5); z-index: 100; }
+            .drag-handle-area { display: flex; }
+            .content-scroll-wrapper { padding: 10px 20px 80px 20px; }
+            #form-container.h-full { height: 80vh; }
+            #form-container.h-half { height: 50vh; }
+            #form-container.h-min { height: 140px; overflow: hidden; } 
+        }
+    </style>
+</head>
+<body>
+
+    <div id="custom-modal">
+        <div class="modal-content">
+            <div class="modal-icon">🚫</div>
+            <div class="modal-title">Driver Mode Disabled</div>
+            <p class="modal-text">To offer a ride, you must enable <b>"I want to offer rides"</b> in your profile and add your car details.</p>
+            <button class="modal-btn" onclick="window.location.href='profile.html'">Go to Profile Settings</button>
+        </div>
+    </div>
+
+    <div id="limit-modal">
+        <div class="modal-content">
+            <div class="modal-icon">⚠️</div>
+            <div class="modal-title">Active Ride Found</div>
+            <p class="modal-text">You already have a scheduled ride. Please complete or cancel it before offering a new one.</p>
+            <button class="modal-btn" onclick="window.location.href='my-rides.html'">Manage My Rides</button>
+        </div>
+    </div>
+
+    <div id="success-modal">
+        <div class="modal-content">
+            <div class="modal-icon" style="text-shadow: 0 0 20px rgba(74, 222, 128, 0.5);">✅</div>
+            <div class="modal-title">Ride Published!</div>
+            <p class="modal-text">Your ride is now live. Passengers can find and book seats immediately.</p>
+            <button class="modal-btn" onclick="window.location.href='my-rides.html'">Go to My Rides</button>
+        </div>
+    </div>
+
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="logo">WAYMATE</a>
+            <button class="menu-toggle">☰</button>
+        </div>
+    </nav>
+
+    <div class="layout-wrapper">
+        <div id="map-container">
+            <div id="map"></div>
+            <div id="map-stats" class="map-stats">
+                <div id="total-dist">0 km</div>
+                <div id="total-time" style="color: var(--text-muted); font-size: 0.85rem;">0 mins</div>
+            </div>
+        </div>
+
+        <div id="form-container" class="h-half">
+            <div class="drag-handle-area" id="drag-handle">
+                <div class="drag-bar"></div>
+            </div>
+            <div class="content-scroll-wrapper">
+                <h1>Offer a Ride</h1>
+                <form id="ride-form" onsubmit="return false;">
+                    <div class="input-group">
+                        <div class="icon-dot"></div>
+                        <input type="text" id="origin" class="form-input" placeholder="Current Location" required>
+                        <button class="location-btn" type="button" onclick="getCurrentLocation()" title="Use Current Location">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="22" y1="12" x2="18" y2="12"></line><line x1="6" y1="12" x2="2" y2="12"></line><line x1="12" y1="6" x2="12" y2="2"></line><line x1="12" y1="22" x2="12" y2="18"></line><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
+                        </button>
+                    </div>
+                    <div id="waypoints-list"></div>
+                    <div class="input-group">
+                        <div class="icon-square"></div>
+                        <input type="text" id="destination" class="form-input" placeholder="Destination" required>
+                    </div>
+                    <button class="add-stop-btn" type="button" onclick="addWaypointField()">
+                        <span>+</span> Add stop
+                    </button>
+                    <div class="form-row">
+                        <div style="position: relative;">
+                            <label class="floating-label">Departure Time</label>
+                            <input type="time" id="ride-time" class="form-input no-icon-input" style="color-scheme: dark;" required>
+                        </div>
+                        <div style="position: relative;">
+                             <label class="floating-label">Seats Available</label>
+                            <input type="number" id="ride-seats" class="form-input no-icon-input" placeholder="e.g. 3" min="1" max="8" required>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 10px; margin-bottom: 10px; font-size: 0.85rem; color: #4ade80; background: rgba(74, 222, 128, 0.1); padding: 10px 14px; border-radius: 12px; display: flex; align-items: center; gap: 8px;">
+                        <span>💡</span> Recommended: ₹4 - ₹8 / km
+                    </div>
+
+                    <div class="input-group" style="position: relative;">
+                        <span style="position: absolute; left: 15px; top: 14px; color: #a1a1a1; z-index: 5; font-size: 1rem;">₹</span>
+                        <input type="number" id="ride-price" class="form-input no-icon-input" placeholder="Price per Km" value="5" required style="padding-left: 35px;">
+                    </div>
+
+                    <textarea id="ride-desc" class="form-input no-icon-input" rows="3" placeholder="Ride details (e.g. Flexible timing, pet friendly)" style="margin-bottom: 20px;"></textarea>
+                    <button id="publish-btn" class="btn-submit">Publish Ride</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, collection, addDoc, serverTimestamp, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { app } from "./firebase-config.js";
+
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const ORS_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjZhZDRiNjExMDU1YjQ5MmRhOGUwNTZkYzQ0NmY3OTM2IiwiaCI6Im11cm11cjY0In0=';
+
+        let currentUser = null;
+        let driverData = null;
+        let map, routeLayer = null;
+        let originCoords = null, destCoords = null;
+        let waypointData = {}; // id -> {lat, lng}
+        let waypointCount = 0;
+        const maxWaypoints = 3;
+        let globalDistanceMeters = 0;
+        let globalDurationSeconds = 0;
+        let routePolyline = "";
+
+        // --- Polyline Decoder ---
+        function decodePolyline(encoded) {
+            const points = []; let i = 0, lat = 0, lng = 0;
+            while (i < encoded.length) {
+                let shift = 0, result = 0, byte;
+                do { byte = encoded.charCodeAt(i++) - 63; result |= (byte & 0x1f) << shift; shift += 5; } while (byte >= 0x20);
+                lat += (result & 1) ? ~(result >> 1) : (result >> 1);
+                shift = 0; result = 0;
+                do { byte = encoded.charCodeAt(i++) - 63; result |= (byte & 0x1f) << shift; shift += 5; } while (byte >= 0x20);
+                lng += (result & 1) ? ~(result >> 1) : (result >> 1);
+                points.push([lat / 1e5, lng / 1e5]);
+            }
+            return points;
+        }
+
+        // --- Nominatim Autocomplete ---
+        function setupAutocomplete(inputId, onSelect) {
+            const input = document.getElementById(inputId);
+            const dropdown = document.createElement('div');
+            dropdown.className = 'autocomplete-dropdown';
+            input.parentElement.style.position = 'relative';
+            input.parentElement.appendChild(dropdown);
+            let timer;
+
+            input.addEventListener('input', () => {
+                clearTimeout(timer);
+                const q = input.value.trim();
+                if (q.length < 3) { dropdown.style.display = 'none'; return; }
+                timer = setTimeout(async () => {
+                    try {
+                        const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&countrycodes=in&limit=5`);
+                        const data = await res.json();
+                        if (data.length > 0) {
+                            dropdown.innerHTML = data.map(r => `<div class="autocomplete-item" data-lat="${r.lat}" data-lon="${r.lon}">${r.display_name}</div>`).join('');
+                            dropdown.style.display = 'block';
+                            dropdown.querySelectorAll('.autocomplete-item').forEach(item => {
+                                item.addEventListener('click', () => {
+                                    input.value = item.textContent;
+                                    dropdown.style.display = 'none';
+                                    if (onSelect) onSelect({ lat: parseFloat(item.dataset.lat), lng: parseFloat(item.dataset.lon) });
+                                });
+                            });
+                        } else { dropdown.style.display = 'none'; }
+                    } catch (e) { console.error('Autocomplete error:', e); }
+                }, 350);
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!input.contains(e.target) && !dropdown.contains(e.target)) dropdown.style.display = 'none';
+            });
+        }
+
+        // --- AUTH CHECK & RESTRICTIONS ---
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUser = user;
+                const userDoc = await getDoc(doc(db, "users", user.uid));
+                if (userDoc.exists()) {
+                    const data = userDoc.data();
+                    if (data.isDriver !== true || !data.carModel || !data.carPlate) {
+                        document.body.classList.add('loaded');
+                        document.getElementById('custom-modal').style.display = 'flex';
+                        return;
+                    }
+                    const q = query(collection(db, "rides"), where("driver_id", "==", user.uid), where("status", "==", "scheduled"));
+                    const existingRides = await getDocs(q);
+                    if (!existingRides.empty) {
+                        document.body.classList.add('loaded');
+                        document.getElementById('limit-modal').style.display = 'flex';
+                        return;
+                    }
+                    driverData = data;
+                    document.body.classList.add('loaded');
+                    initMapLogic();
+                } else {
+                    document.body.classList.add('loaded');
+                    document.getElementById('custom-modal').style.display = 'flex';
+                }
+            } else {
+                window.location.href = "login.html";
+            }
+        });
+
+        // --- MAP INIT ---
+        function initMapLogic() {
+            map = L.map('map', { zoomControl: false }).setView([20.5937, 78.9629], 5);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OSM &copy; CARTO', maxZoom: 19
+            }).addTo(map);
+
+            setupAutocomplete('origin', (coords) => {
+                originCoords = coords;
+                map.setView([coords.lat, coords.lng], 13);
+                calcRoute();
+            });
+            setupAutocomplete('destination', (coords) => {
+                destCoords = coords;
+                calcRoute();
+            });
+        }
+
+        // --- CURRENT LOCATION ---
+        window.getCurrentLocation = function() {
+            const originInput = document.getElementById('origin');
+            if (!navigator.geolocation) { alert("Geolocation not supported."); return; }
+            originInput.value = "Locating...";
+            navigator.geolocation.getCurrentPosition(async (position) => {
+                const lat = position.coords.latitude, lng = position.coords.longitude;
+                originCoords = { lat, lng };
+                try {
+                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
+                    const data = await res.json();
+                    originInput.value = data.display_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+                } catch (e) { originInput.value = `${lat.toFixed(4)}, ${lng.toFixed(4)}`; }
+                map.setView([lat, lng], 15);
+                calcRoute();
+            }, () => { alert("Geolocation failed."); originInput.value = ""; });
+        }
+
+        // --- WAYPOINTS ---
+        window.addWaypointField = function() {
+            if (waypointCount >= maxWaypoints) { alert("Maximum 3 stops."); return; }
+            waypointCount++;
+            const container = document.getElementById('waypoints-list');
+            const div = document.createElement('div');
+            const uid = `waypoint-${Date.now()}`;
+            div.className = 'waypoint-container input-group';
+            div.dataset.wpid = uid;
+            div.innerHTML = `
+                <div class="icon-dot" style="background: var(--text-muted); width: 8px; height: 8px; left: 13px;"></div>
+                <input type="text" id="${uid}" class="form-input" placeholder="Add stop">
+                <button class="remove-wp-btn" type="button" onclick="removeWaypoint(this)">×</button>
+            `;
+            container.appendChild(div);
+            setupAutocomplete(uid, (coords) => { waypointData[uid] = coords; calcRoute(); });
+        }
+
+        window.removeWaypoint = function(btn) {
+            const wpid = btn.parentElement.dataset.wpid;
+            delete waypointData[wpid];
+            btn.parentElement.remove();
+            waypointCount--;
+            calcRoute();
+        }
+
+        // --- ROUTE CALCULATION (ORS) ---
+        async function calcRoute() {
+            if (!originCoords || !destCoords) return;
+            setPanelState('full');
+
+            const coordinates = [[originCoords.lng, originCoords.lat]];
+            // Add waypoints in DOM order
+            document.querySelectorAll('#waypoints-list .waypoint-container').forEach(el => {
+                const wpid = el.dataset.wpid;
+                if (waypointData[wpid]) coordinates.push([waypointData[wpid].lng, waypointData[wpid].lat]);
+            });
+            coordinates.push([destCoords.lng, destCoords.lat]);
+
+            try {
+                const res = await fetch('https://api.openrouteservice.org/v2/directions/driving-car', {
+                    method: 'POST',
+                    headers: { 'Authorization': ORS_KEY, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ coordinates })
+                });
+                const data = await res.json();
+                if (data.routes && data.routes.length > 0) {
+                    const route = data.routes[0];
+                    routePolyline = route.geometry;
+                    globalDistanceMeters = route.summary.distance;
+                    globalDurationSeconds = route.summary.duration;
+
+                    const path = decodePolyline(routePolyline);
+                    if (routeLayer) map.removeLayer(routeLayer);
+                    routeLayer = L.polyline(path, { color: '#ffffff', weight: 5, opacity: 0.9 }).addTo(map);
+                    map.fitBounds(routeLayer.getBounds(), { padding: [50, 50] });
+
+                    document.getElementById('map-stats').style.display = 'block';
+                    document.getElementById('total-dist').innerText = (globalDistanceMeters / 1000).toFixed(1) + " km";
+                    const hrs = Math.floor(globalDurationSeconds / 3600);
+                    const mins = Math.floor((globalDurationSeconds % 3600) / 60);
+                    document.getElementById('total-time').innerText = `${hrs}h ${mins}m`;
+                } else {
+                    console.error("ORS Error:", data);
+                    alert("Could not calculate route. Try different locations.");
+                }
+            } catch (error) {
+                console.error("Route calculation failed:", error);
+            }
+        }
+        window.calcRoute = calcRoute;
+
+        // --- SUBMIT RIDE LOGIC ---
+        const publishBtn = document.getElementById('publish-btn');
+        publishBtn.addEventListener('click', async () => {
+            if (!currentUser || !driverData) return;
+            const origin = document.getElementById("origin").value;
+            const destination = document.getElementById("destination").value;
+            const time = document.getElementById("ride-time").value;
+            const seats = document.getElementById("ride-seats").value;
+            const price = document.getElementById("ride-price").value;
+            const desc = document.getElementById("ride-desc").value;
+
+            if (!origin || !destination || !time || !seats || !price) { alert("Please fill all fields."); return; }
+            if (globalDistanceMeters === 0) { alert("Please select valid locations to calculate route first."); return; }
+
+            const [hours, minutes] = time.split(':');
+            const startDate = new Date();
+            startDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+            if (startDate < new Date()) startDate.setDate(startDate.getDate() + 1);
+            const completionDate = new Date(startDate.getTime() + (globalDurationSeconds * 1000));
+            const expiryDate = new Date(completionDate.getTime() + (60 * 60 * 1000));
+
+            publishBtn.textContent = "Publishing...";
+            publishBtn.disabled = true;
+            try {
+                await addDoc(collection(db, "rides"), {
+                    driver_id: currentUser.uid, driver_name: currentUser.displayName, driver_photo: currentUser.photoURL,
+                    car_model: driverData.carModel, car_plate: driverData.carPlate,
+                    origin, destination, date_time: startDate, expires_at: expiryDate,
+                    price_per_seat: parseInt(price), seats_total: parseInt(seats), seats_available: parseInt(seats),
+                    description: desc, status: "scheduled", route_polyline: routePolyline,
+                    duration_seconds: globalDurationSeconds, distance_meters: globalDistanceMeters,
+                    created_at: serverTimestamp()
+                });
+                document.getElementById('success-modal').style.display = 'flex';
+            } catch (error) {
+                console.error("Error publishing ride:", error);
+                alert("Error: " + error.message);
+                publishBtn.textContent = "Publish Ride";
+                publishBtn.disabled = false;
+            }
+        });
+
+        // --- PANEL UI LOGIC ---
+        const handle = document.getElementById('drag-handle');
+        const panel = document.getElementById('form-container');
+        let stateIndex = 1;
+        const states = ['min', 'half', 'full'];
+
+        function setPanelState(targetState) {
+            panel.classList.remove('h-min', 'h-half', 'h-full');
+            if (targetState === 'min') { stateIndex = 0; panel.classList.add('h-min'); }
+            else if (targetState === 'half') { stateIndex = 1; panel.classList.add('h-half'); }
+            else if (targetState === 'full') { stateIndex = 2; panel.classList.add('h-full'); }
+        }
+
+        handle.addEventListener('click', () => {
+            if (stateIndex === 1) setPanelState('full');
+            else if (stateIndex === 2) setPanelState('half');
+            else setPanelState('half');
+        });
+
+        let startY;
+        handle.addEventListener('touchstart', (e) => { startY = e.touches[0].clientY; }, {passive: true});
+        handle.addEventListener('touchend', (e) => {
+            const endY = e.changedTouches[0].clientY;
+            const diff = startY - endY;
+            if (diff > 50) { if (stateIndex < 2) setPanelState(states[stateIndex + 1]); }
+            else if (diff < -50) { if (stateIndex > 0) setPanelState(states[stateIndex - 1]); }
+        }, {passive: true});
+
+    </script>
+</body>
+</html>
